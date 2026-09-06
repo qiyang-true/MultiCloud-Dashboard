@@ -1,4 +1,4 @@
-# K8s Dashboard（手搓项目）
+# MultiCloud-Dashboard（手搓项目）
 
 基于 Django 的 Kubernetes 集群管理平台，同时提供阿里云、腾讯云、AWS 等多云资源总览能力。
 
