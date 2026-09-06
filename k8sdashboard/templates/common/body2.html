@@ -1,0 +1,38 @@
+</div>
+</div>
+
+<div class="layui-footer">
+    <!-- 底部固定区域 -->
+</div>
+</div>
+<script>
+layui.use('layer', function(){
+    var layer = layui.layer;
+});
+layui.use('element', function(){
+    var element = layui.element;
+});
+$('.set-currentcontext').click(function(){
+    var loading = layer.load(1, {shade: [0.001,'#fff']});
+    var clusterid = $(this).attr('clusterid');
+    $.post('/cluster/setcurrentcontext/', {clusterid: clusterid}, function(data, status){
+        console.log(data);
+        if(data.status == 1){
+            window.location.reload();
+        }else{
+            layer.msg(data.info);
+        }
+    });
+});
+$('.set-apiversion').click(function(){
+    var apiversion = $(this).attr('apiversion');
+    $.post('__MODULE__/Index/setApiVersion', {apiversion: apiversion}, function(data, status){
+        console.log(data);
+        if(data.status == 1){
+            window.location.reload();
+        }else{
+            layer.msg(data.info);
+        }
+    });
+});
+</script>

@@ -1,0 +1,36 @@
+{% extends 'common/base.html' %}
+{% block title %}阿里云快照管理{% endblock %}
+{% block content %}
+<style>
+.cloud-head{display:flex;align-items:flex-end;justify-content:space-between;margin:18px 0 4px;border-left:5px solid {{ provider.color }};padding-left:12px;}
+.cloud-head h2{margin:0;font-size:20px;font-weight:600;}
+.cloud-head span{color:#8a8f99;font-size:13px;}
+</style>
+
+<div class="layui-container">
+    <div class="cloud-head">
+        <h2>{{ provider.name }} 快照管理</h2>
+        <span>云盘快照</span>
+    </div>
+    {% include 'cloud/_region_switch.html' %}
+    <fieldset class="layui-elem-field layui-field-title" style="margin-top:16px;"><legend>快照列表</legend></fieldset>
+    <div class="layui-card">
+        <div class="layui-card-body">
+            <table class="layui-table" lay-skin="line" lay-size="sm">
+                <thead><tr><th>快照 ID</th><th>名称</th><th>源云盘</th><th>源盘容量</th><th>进度</th><th>状态</th><th>创建时间</th><th>最后修改时间</th></tr></thead>
+                <tbody>
+                {% for item in snapshots %}
+                <tr>
+                    <td>{{ item.snapshot_id }}</td><td>{{ item.snapshot_name }}</td><td>{{ item.source_disk_id }}</td><td>{{ item.source_disk_size }}</td>
+                    <td>{{ item.progress }}</td><td><span class="{{ item.badge }}">{{ item.status }}</span></td><td>{{ item.creation_time }}</td><td>{{ item.last_modified_time }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" style="text-align:center;color:#999;">暂无快照</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% include 'cloud/_error_popup.html' %}
+{% endblock %}

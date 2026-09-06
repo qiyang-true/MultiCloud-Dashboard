@@ -1,0 +1,45 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+
+# Django
+*.log
+*.pot
+db.sqlite3
+/media/
+/staticfiles/
+
+# Local database dumps and backups
+*.bak
+/dashboard-django.sql
+
+# Kubeconfig / credentials
+k8sdashboard/config
+*.kubeconfig
+*credentials*
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/

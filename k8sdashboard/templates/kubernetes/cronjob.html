@@ -1,0 +1,32 @@
+{% extends 'common/base.html' %}
+{% block title %}CronJobs{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+    <tr>
+        <th>序号</th>
+        <th>name</th>
+        <th>namespace</th>
+        <th>schedule</th>
+        <th>suspend</th>
+        <th>active</th>
+        <th>last schedule time</th>
+        <th>创建时间</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for i in cronjoblist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.metadata.name }}</td>
+            <td>{{ i.metadata.namespace }}</td>
+            <td>{{ i.spec.schedule }}</td>
+            <td>{{ i.spec.suspend|default:"False" }}</td>
+            <td>{{ i.status.active|length|default:"0" }}</td>
+            <td>{{ i.status.last_schedule_time|default:"-" }}</td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

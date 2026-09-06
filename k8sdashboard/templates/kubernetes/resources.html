@@ -1,0 +1,207 @@
+{% extends 'common/base.html' %}
+{% block title %}Resource Usage{% endblock %}
+{% block content %}
+{% load custom_filters %}
+
+<style>
+.progress-bar-container{background:#eee;border-radius:3px;height:18px;width:120px;display:inline-block;vertical-align:middle}
+.progress-bar-fill{height:100%;border-radius:3px;text-align:center;color:#fff;font-size:11px;line-height:18px;min-width:30px}
+.metric-unavailable{color:#999;font-style:italic}
+</style>
+
+{% if cloud_providers %}
+<fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+    <legend>多云资源预览</legend>
+</fieldset>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table" lay-skin="line" lay-size="sm">
+            <thead>
+                <tr>
+                    <th>云厂商</th>
+                    <th>实例类型</th>
+                    <th>实例总数</th>
+                    <th>运行中</th>
+                    <th>已停止</th>
+                    <th>存储桶</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cloud_providers %}
+                <tr>
+                    <td><span style="color:{{ item.provider.color }};font-weight:600;">{{ item.provider.name }}</span></td>
+                    <td>{{ item.provider.instance_label }} / {{ item.provider.storage_label }}</td>
+                    <td>{{ item.instances }}</td>
+                    <td>{{ item.running }}</td>
+                    <td>{{ item.stopped }}</td>
+                    <td>{{ item.buckets }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if cloud_instances %}
+<fieldset class="layui-elem-field layui-field-title" style="margin-top:24px;">
+    <legend>阿里云 ECS 预览</legend>
+</fieldset>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table" lay-skin="line" lay-size="sm">
+            <thead>
+                <tr>
+                    <th>实例 ID</th>
+                    <th>名称</th>
+                    <th>地域</th>
+                    <th>规格</th>
+                    <th>公网 IP</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for instance in cloud_instances %}
+                <tr>
+                    <td>{{ instance.instance_id }}</td>
+                    <td>{{ instance.name }}</td>
+                    <td>{{ instance.region }}</td>
+                    <td>{{ instance.spec }}</td>
+                    <td>{{ instance.public_ip }}</td>
+                    <td><span class="{{ instance.badge }}">{{ instance.status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if cluster_error %}
+<div class="layui-alert layui-alert-danger" style="margin:15px 0;">
+    <p>{{ cluster_error }}</p>
+    <p>请检查网络或集群配置后刷新页面。</p>
+</div>
+{% elif not node_metrics_available or not pod_metrics_available %}
+<div class="layui-alert layui-alert-warning" style="margin:15px 0;">
+    <p>Metrics Server not available — actual usage data cannot be displayed. Install Metrics Server to enable this feature:</p>
+    <code style="background:#f0f0f0;padding:4px 8px;border-radius:3px">kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml</code>
+</div>
+{% endif %}
+
+<fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+    <legend>Node Resource Usage</legend>
+</fieldset>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table" lay-skin="line" lay-size="sm">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Node Name</th>
+                    <th>CPU (Used / Total)</th>
+                    <th>CPU %</th>
+                    <th>Memory (Used / Total)</th>
+                    <th>Memory %</th>
+                    <th>Pods</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for n in node_data %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ n.name }}</td>
+                    <td>
+                        {% if n.cpu_used %}
+                        {{ n.cpu_used }} / {{ n.cpu_total }} cores
+                        {% else %}
+                        <span class="metric-unavailable">-- / {{ n.cpu_total }} cores</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if n.cpu_percent is not None %}
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width:{{ n.cpu_percent }}%;background-color:{{ n.cpu_bar_color }}">
+                                {{ n.cpu_percent }}%
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="metric-unavailable">--</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if n.memory_used %}
+                        {{ n.memory_used }} / {{ n.memory_total }}
+                        {% else %}
+                        <span class="metric-unavailable">-- / {{ n.memory_total }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if n.memory_percent is not None %}
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width:{{ n.memory_percent }}%;background-color:{{ n.memory_bar_color }}">
+                                {{ n.memory_percent }}%
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="metric-unavailable">--</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ n.pods_running }} / {{ n.pods_max }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align:center;color:#999">{% if cluster_error %}暂时无法获取集群数据{% else %}No nodes found in this cluster.{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<fieldset class="layui-elem-field layui-field-title" style="margin-top:30px;">
+    <legend>Namespace Resource Usage</legend>
+</fieldset>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table class="layui-table" lay-skin="line" lay-size="sm">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Namespace</th>
+                    <th>Pods</th>
+                    <th>CPU Requests</th>
+                    <th>CPU Limits</th>
+                    <th>Memory Requests</th>
+                    <th>Memory Limits</th>
+                    {% if pod_metrics_available %}
+                    <th>CPU Usage</th>
+                    <th>Memory Usage</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for ns in ns_data %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ ns.name }}</td>
+                    <td>{{ ns.pod_count }}</td>
+                    <td>{{ ns.cpu_requests }} cores</td>
+                    <td>{{ ns.cpu_limits }} cores</td>
+                    <td>{{ ns.mem_requests }}</td>
+                    <td>{{ ns.mem_limits }}</td>
+                    {% if pod_metrics_available %}
+                    <td>{{ ns.cpu_usage|default:"--" }} cores</td>
+                    <td>{{ ns.mem_usage|default:"--" }}</td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{% if pod_metrics_available %}9{% else %}7{% endif %}" style="text-align:center;color:#999">{% if cluster_error %}暂时无法获取集群数据{% else %}No namespaces found.{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+layui.use('layer', function(){ var layer = layui.layer; });
+</script>
+{% endblock %}

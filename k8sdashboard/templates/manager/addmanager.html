@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加管理员账号</title>
+</head>
+<body>
+    <div><a href="/">首页</a></div>
+    <form action="/addmanager/" method="post">
+        <div>账号：<input type="text" name="username"></div>
+        <div>密码：<input type="text" name="password"></div>
+        <div>角色：
+            <select name="role_id" id="">
+                <option value="1">管理员</option>
+            </select>
+        </div>
+        <div><button>添加</button><span>{{ msg }}</span></div>
+    </form>
+</body>
+</html>

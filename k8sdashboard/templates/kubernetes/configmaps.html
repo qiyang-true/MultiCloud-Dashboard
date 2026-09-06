@@ -1,0 +1,132 @@
+{% extends 'common/base.html' %}
+{% block title %}deploymenys{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-filter="parse-table-demo" lay-size="sm">
+    <thead>
+    <tr>
+        <th lay-data="{checkbox:true}">序号</th>
+        <th lay-data="{field:'joinTime', width:150}">name</th>
+        <th lay-data="{field:'joinTime', width:150}">namespace</th>
+        <th lay-data="{field:'sign'}">创建时间</th>
+        <th lay-data="{field:'sign'}">操作</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for i in configmaplist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.metadata.name }}</td>
+            <td>{{ i.metadata.namespace }}</td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+            <td>
+                {% if editConfigmap %}
+                <button class="layui-btn layui-btn-sm edit-configmaps" namespace="{{ i.metadata.namespace }}" kindname="{{ i.metadata.name }}">编辑</button>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<include file="Public/page"/>
+<script>
+layui.use('layer', function(){
+    var layer = layui.layer;
+});
+</script>
+<script>
+$('.edit-configmaps').click(function(index)
+{
+    var namespace = $(this).attr('namespace');
+    var kindname = $(this).attr('kindname');
+    var kind = 'configmap';
+    var getResourceUrl = '/editkubernetes/getConfigmapResource/';
+    var editResourceUrl = '/editkubernetes/updateConfigmapResource/';
+    var saveResourceUrl = '/editkubernetes/makeFile/';
+    
+    $.post(getResourceUrl, {namespace: namespace, kindname: kindname}, function(data, status){
+        if(status == "success"){
+            console.log(data);
+            if(data.status == 1){
+                var RamdomNum = Math.ceil(Math.random() * 1000);
+                var width = 900;
+                var height = 600;
+                var leftOffset = ($(window).width() - width) / 2;
+                var topOffset = ($(window).height() - height) / 2;
+                var layerIndex = layer.open({
+                    type: 1
+                    ,title: namespace+' / '+kindname
+                    ,area: [width+'px', height+'px']
+                    ,shade: 0.001
+                    ,resize: false
+                    ,maxmin: false
+                    ,offset: [topOffset, leftOffset]
+                    ,content: '<textarea class="layui-code" id="textareabox'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+data.data+'</textarea>'
+
+                    ,btn: ['应用', '干跑', '保存到模板', '关闭']
+                    ,yes: function(){
+                        var yaml = $('#textareabox'+RamdomNum).val();
+                        $.post(editResourceUrl, {namespace: namespace, kindname: kindname, yaml: yaml}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                    layer.close(layerIndex);
+                                }else{
+                                    layer.msg(data.info, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                    }
+                    ,btn2: function(){
+                        var yaml = $('#textareabox'+RamdomNum).val();
+                        $.post(editResourceUrl, {namespace: namespace, kindname: kindname, yaml: yaml, dryRun: true}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                }else{
+                                    layer.msg(data.info, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                        return false;
+                    }
+                    ,btn3: function(){
+                        var contents = $('#textareabox'+RamdomNum).val();
+                        var filename = kind+'-'+namespace+'-'+kindname+'-'+Math.ceil(Math.random() * 10000)+'.yaml';
+                        $.post(saveResourceUrl, {filename: filename, contents: contents}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                }else{
+                                    layer.msg(data.info);
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                        return false;
+                    }
+                    ,btn4: function(){
+                        layer.close(layerIndex);
+                    }
+                    ,resizing: function(layero){
+                        //console.log(layero);
+                        //console.log(layero[0].clientHeight);
+                    }
+                });
+            }else{
+                layer.msg(data.info);
+            }
+        }else{
+            layer.msg('请求错误');
+        }
+    });
+});
+</script>
+{% endblock %}

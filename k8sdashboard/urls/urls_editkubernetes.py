@@ -1,0 +1,27 @@
+from django.urls import path, re_path
+from k8sdashboard import editkubernetes
+urlpatterns = [
+    re_path('^getdeploymentnamefromreplicaset/$', editkubernetes.getDeploymentNameFromReplicaset, name='getDeploymentNameFromReplicaset'),
+    re_path('^getreplicaset/$', editkubernetes.getReplicaset, name='getReplicaset'),
+    re_path('^getpodresource/$', editkubernetes.getPodResource, name='getPodResource'),
+    re_path('^updatedeploymentresource/$', editkubernetes.updateDeploymentResource, name='updateDeploymentResource'),
+    re_path('^rollbackimage/$', editkubernetes.rollBackImage, name='rollBackImage'),
+    re_path('^getpodlogs/$', editkubernetes.getPodLogs, name='getPodLogs'),
+    re_path('^setdeploymentimages/$', editkubernetes.setDeploymentImages, name='setDeploymentImages'),
+    re_path('^getdeploymentresource/$', editkubernetes.getDeploymentResource, name='getDeploymentResource'),
+    re_path('^getdeploymentimagesfromsetimage/$', editkubernetes.getDeploymentImagesFromSetImage, name='getDeploymentImagesFromSetImage'),
+    re_path('^updatepodresource/$', editkubernetes.updatePodResource, name='updatePodResource'),
+    re_path('^updatepodresourcedryrun/$', editkubernetes.updatePodResourceDryRun, name='updatePodResourceDryRun'),
+    re_path('^deletepod/$', editkubernetes.deletePod, name='deletePod'),
+    re_path('^getserviceresource/$', editkubernetes.getServiceResource, name='getServiceResource'),
+    re_path('^updateserviceresource/$', editkubernetes.updateServiceResource, name='updateServiceResource'),
+    re_path('^updateserviceresourcedryrun/$', editkubernetes.updateServiceResourceDryRun, name='updateServiceResourceDryRun'),
+    re_path('^getingressresource/$', editkubernetes.getIngressResource, name='getIngressResource'),
+    re_path('^updateingressresource/$', editkubernetes.updateIngressResource, name='updateIngressResource'),
+    re_path('^getconfigmapresource/$', editkubernetes.getConfigmapResource, name='getConfigmapResource'),
+    re_path('^updateconfigmapresource/$', editkubernetes.updateConfigmapResource, name='updateConfigmapResource'),
+    re_path('^savedeploymentresource/$', editkubernetes.saveDeploymentResource, name='saveDeploymentResource'),
+    re_path('^makefile/$', editkubernetes.makeFile, name='makeFile'),
+    re_path('^getdaemonsetresource/$', editkubernetes.getDaemonsetResource, name='getDaemonsetResource'),
+    re_path('^updatedaemonsetresource/$', editkubernetes.updateDaemonsetResource, name='updateDaemonsetResource'),
+]

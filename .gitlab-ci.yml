@@ -1,0 +1,52 @@
+stages:
+  - build
+  - dockerize
+  - deploy
+
+build:
+  stage: build
+  image: 
+    name: python:3.6.8-alpine
+    pull_policy: if-not-present
+  script:
+    - ls -al
+
+dockerize:
+  stage: dockerize
+  image:
+    name: m.daocloud.io/docker.io/docker:24.0.7
+    pull_policy: if-not-present
+  services:
+    - m.daocloud.io/docker.io/docker:24.0.7-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  dependencies:
+    - build
+  script:
+    - ls -al
+    - IMAGE_NAME=${HARBOR_URL}/k8sdashboard/k8sdashboard-django:$CI_COMMIT_REF_NAME-$(date +'%Y%m%d%H%M')-$(echo $CI_COMMIT_SHA | cut -c1-7)
+    - echo $IMAGE_NAME > image_name.temp
+    - echo $IMAGE_NAME
+    - docker ps
+    - docker build -t $IMAGE_NAME .
+    - docker login -u $HARBOR_USERNAME -p $HARBOR_PASSWORD $HARBOR_URL
+    - docker image ls | grep django
+    - docker push $IMAGE_NAME
+  artifacts:
+    paths:
+      - image_name.temp
+    expire_in: 1 days
+
+
+deploy:
+  stage: deploy
+  image: 
+    name: harbor.k8s.local/kubectl/kubectl:0.2
+    pull_policy: if-not-present
+  needs:
+    - dockerize
+  script:
+    - IMAGE_NAME=$(cat image_name.temp)
+    - echo ${IMAGE_NAME}
+    - kubectl set image deployments -n default k8sdashboard k8sdashboard-django=$IMAGE_NAME
+    - kubectl get pods -A -l app=k8sdashboard

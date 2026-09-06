@@ -1,0 +1,279 @@
+{% extends 'common/base.html' %}
+{% block title %}deploymenys{% endblock %}
+{% block content %}
+<style>
+select[name=namespace],input{height: 38px;width:180px;text-indent:10px;line-height: 1.3;line-height: 38px\9;border-width: 1px;border-style: solid;background-color: #fff;border-radius: 2px;border-color: #e6e6e6;color:#666;}
+input{height: 36px;}
+select[name=namespace]{margin-left:10px;margin-right:10px;}
+</style>
+<form action="" method="get">
+    <input type="text" name="deploymentname" value="{{ deployment_name }}" placeholder="搜索deployment名称" autocomplete="off">
+    <select name="namespace">
+        <option value="">--all-namespace</option>
+        {% for i in namespaces %}
+        <option value="{{ i.metadata.name }}" {% if selected_namespace == i.metadata.name %}selected{% endif %}>{{ i.metadata.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="hidden" name="leftpid" value="{{ request.GET.leftpid }}" />
+    <input type="hidden" name="leftid" value="{{ request.GET.leftid }}" />
+    <input type="hidden" name="topid" value="{{ request.GET.topid }}" />
+    <button class="layui-btn" lay-submit lay-filter="formDemo">查询</button>
+</form>
+    <table class="layui-table" lay-skin="line" lay-filter="parse-table-demo" lay-size="sm">
+        <colgroup>
+        <col>
+        <col>
+        <col>
+        <col>
+        <col>
+        <col>
+        <if condition="$editDeployment or $setImages">
+        <col>
+        </if>
+        </colgroup>
+        <thead>
+            <tr>
+                <th lay-data="{checkbox:true}">序号</th>
+                <th lay-data="{field:'joinTime', width:150}">deployment</th>
+                <th lay-data="{field:'joinTime', width:150}">namespace</th>
+                <th lay-data="{field:'joinTime', width:150}">replicas</th>
+                <th lay-data="{field:'joinTime', width:150}">images</th>
+                <th lay-data="{field:'joinTime', width:150}">创建时间</th>
+                <if condition="$editDeployment or $setImages">
+                <th lay-data="{field:'sign'}">操作</th>
+                </if>
+            </tr>
+        </thead>
+        <tbody>
+        {% for i in deploymentlist %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td style="width:200px;word-break:break-all;">{{ i.metadata.name }}</td>
+                <td>{{ i.metadata.namespace }}</td>
+                <td>{{ i.spec.replicas }}</td>
+                <td style="width:260px;word-break:break-all;">
+                    {% for o in i.spec.template.spec.containers %}
+                        {{ o.name }}={{ o.image }}<br>
+                    {% endfor %}
+                </td>
+                <td>{{ i.metadata.creation_timestamp }}</td>
+                <!-- <if condition="$editDeployment or $setImages"> -->
+                {% if editDeployment or setImages %}
+                <td style="width:100px;">
+                    <div class="layui-btn-group">
+                        {% if editDeployment %}
+                        <button class="layui-btn layui-btn-sm edit-deployment" namespace="{{ i.metadata.namespace }}" deploymentname="{{ i.metadata.name }}">编辑</button>
+                        {% endif %}
+
+                        {% if setImages %}
+                        <button class="layui-btn layui-btn-sm set-image" namespace="{{ i.metadata.namespace }}" deploymentname="{{ i.metadata.name }}">发版</button>
+                        {% endif %}
+                    </div>
+                </td>
+                {% endif %}
+                <!-- </if> -->
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if not deployment_name and deploymentlist.has_other_pages %}
+    <div class="pagination" style="text-align:right;">
+        <span class="step-links layui-box layui-laypage layui-laypage-default">
+            {% if deploymentlist.has_previous %}
+            <a href="?page=1{% if request.GET.namespace %}&namespace={{ request.GET.namespace }}{% endif %}{% if request.GET.leftpid %}&leftpid={{ request.GET.leftpid }}{% endif %}{% if request.GET.leftid %}&leftid={{ request.GET.leftid }}{% endif %}{% if request.GET.topid %}&topid={{ request.GET.topid }}{% endif %}">&laquo; 首页</a>
+            <a href="?page={{ deploymentlist.previous_page_number }}{% if request.GET.namespace %}&namespace={{ request.GET.namespace }}{% endif %}{% if request.GET.leftpid %}&leftpid={{ request.GET.leftpid }}{% endif %}{% if request.GET.leftid %}&leftid={{ request.GET.leftid }}{% endif %}{% if request.GET.topid %}&topid={{ request.GET.topid }}{% endif %}">上一页</a>
+            {% endif %}
+            <span class="current-page">
+                第 {{ deploymentlist.number }} 页，共 {{ deploymentlist.paginator.num_pages }} 页
+            </span>
+            {% if deploymentlist.has_next %}
+            <a href="?page={{ deploymentlist.next_page_number }}{% if request.GET.namespace %}&namespace={{ request.GET.namespace }}{% endif %}{% if request.GET.leftpid %}&leftpid={{ request.GET.leftpid }}{% endif %}{% if request.GET.leftid %}&leftid={{ request.GET.leftid }}{% endif %}{% if request.GET.topid %}&topid={{ request.GET.topid }}{% endif %}">下一页</a>
+            <a href="?page={{ deploymentlist.paginator.num_pages }}{% if request.GET.namespace %}&namespace={{ request.GET.namespace }}{% endif %}{% if request.GET.leftpid %}&leftpid={{ request.GET.leftpid }}{% endif %}{% if request.GET.leftid %}&leftid={{ request.GET.leftid }}{% endif %}{% if request.GET.topid %}&topid={{ request.GET.topid }}{% endif %}">末页 &raquo;</a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+<script>
+    layui.use('layer', function(){
+        var layer = layui.layer;
+    });
+</script>
+<script>
+    $('.edit-deployment').click(function(index)
+    {
+        var namespace = $(this).attr('namespace');
+        var deploymentname = $(this).attr('deploymentname');
+        var kind = 'deployment';
+        var getResourceUrl = base_url + '/editkubernetes/getDeploymentResource/';
+        var editResourceUrl = base_url + '/editkubernetes/updateDeploymentResource/';
+        var saveResourceUrl = base_url + '/editkubernetes/saveDeploymentResource/';
+        
+        $.post(getResourceUrl, {namespace: namespace, deploymentname: deploymentname}, function(data, status){
+            if(status == "success"){
+                console.log(data);
+                if(data.status == 1){
+                    var RamdomNum = Math.ceil(Math.random() * 1000);
+                    var width = 900;
+                    var height = 600;
+                    var leftOffset = ($(window).width() - width) / 2;
+                    var topOffset = ($(window).height() - height) / 2;
+                    var layerIndex = layer.open({
+                        type: 1
+                        ,title: namespace+' / '+deploymentname
+                        ,area: [width+'px', height+'px']
+                        ,shade: 0.001
+                        ,resize: false
+                        ,maxmin: false
+                        ,offset: [topOffset, leftOffset]
+                        ,content: '<textarea class="layui-code" id="textareabox'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+data.data+'</textarea>'
+
+                        ,btn: ['应用', '干跑', '保存到模板', '关闭']
+                        ,yes: function(){
+                            var yaml = $('#textareabox'+RamdomNum).val();
+                            console.log(editResourceUrl);
+                            console.log(namespace);
+                            console.log(deploymentname);
+                            console.log(yaml);
+                            $.post(editResourceUrl, {namespace: namespace, deploymentname: deploymentname, yaml: yaml}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                        layer.close(layerIndex);
+                                    }else{
+                                        layer.msg(data.info, {time: 8000});
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                        }
+                        ,btn2: function(){
+                            var yaml = $('#textareabox'+RamdomNum).val();
+                            $.post(editResourceUrl, {namespace: namespace, deploymentname: deploymentname, yaml: yaml, dryRun: true}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                    }else{
+                                        layer.msg(data.info, {time: 8000});
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                            return false;
+                        }
+                        ,btn3: function(){
+                            var contents = $('#textareabox'+RamdomNum).val();
+                            var filename = kind+'-'+namespace+'-'+deploymentname+'-'+Math.ceil(Math.random() * 10000)+'.yaml';
+                            $.post(saveResourceUrl, {namespace: namespace, deploymentname: deploymentname, filename: filename, contents: contents}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                        layer.close(layerIndex);
+                                    }else{
+                                        layer.msg(data.info);
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                            return false;
+                        }
+                        ,btn4: function(){
+                            layer.close(layerIndex);
+                        }
+                        ,resizing: function(layero){
+                            //console.log(layero);
+                            //console.log(layero[0].clientHeight);
+                        }
+                    });
+                }else{
+                    layer.msg(data.info);
+                }
+            }else{
+                layer.msg('请求错误');
+            }
+        });
+    });
+</script>
+<script>
+    $('.set-image').click(function(index)
+    {
+        var namespace = $(this).attr('namespace');
+        var deploymentname = $(this).attr('deploymentname');
+        var kind = 'deployment';
+        var getResourceUrl = base_url + '/editkubernetes/getDeploymentImagesFromSetImage/';
+        var editResourceUrl = base_url + '/editkubernetes/setDeploymentImages/';
+        
+        $.post(getResourceUrl, {namespace: namespace, deploymentname: deploymentname}, function(data, status){
+            if(status == 'success'){
+                console.log(data);
+                if(data.status == 1){
+                    var RamdomNum = Math.ceil(Math.random() * 1000);
+                    var width = 900;
+                    var height = 600;
+                    var leftOffset = ($(window).width() - width) / 2;
+                    var topOffset = ($(window).height() - height) / 2;
+                    
+                    var html = '<div style="padding:20px;"><table class="layui-table"><colgroup><col width="60"><col width="200"><col></colgroup>';
+                    html += '<thead><tr><th>序号</th><th>镜像名称</th><th>镜像地址</th></tr></thead><tbody>';
+                    var num = 0;
+                    for(var i in data.data){
+                        html += '<tr><td>'+(num+1)+'</td><td>'+i+'</td><td><input type="text" name="image[]" required  lay-verify="required" imagename="'+i+'" value="'+data.data[i]+'" autocomplete="off" class="layui-input"></td></tr>';
+                        num++;
+                    }
+                    html += '</tbody></table></div>';
+                    
+                    var layerIndex = layer.open({
+                        type: 1
+                        ,title: 'set-image: '+namespace+' / '+deploymentname
+                        ,area: [width+'px', height+'px']
+                        ,shade: 0.001
+                        ,resize: false
+                        ,maxmin: false
+                        ,offset: [topOffset, leftOffset]
+                        ,content: html
+
+                        ,btn: ['应用', '关闭']
+                        ,yes: function(){
+                            var imagelist = '{';
+                            var len = $('input[name="image[]"]').length;
+                            $('input[name="image[]"]').each(function(i){
+                                if(i < len-1){
+                                    imagelist += '"'+$(this).attr('imagename')+'":"'+$(this).val()+'",';
+                                }else{
+                                    imagelist += '"'+$(this).attr('imagename')+'":"'+$(this).val()+'"}';
+                                }
+                            });
+                            console.log(imagelist);
+                            $.post(editResourceUrl, {namespace: namespace, deploymentname: deploymentname, imagelist: imagelist}, function(data, status){
+                                console.log(data);
+                                if(status == 'success'){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                        layer.close(layerIndex);
+                                    }else{
+                                        layer.msg(data.info+': '+data.url.reason+','+data.url.message, {time: 8000});
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                        }
+                        ,btn2: function(){
+                            layer.close(layerIndex);
+                        }
+                    });
+                }else{
+                    layer.msg(data.info);
+                }
+            }else{
+                layer.msg('请求错误');
+            }
+        });
+    });
+</script>
+{% endblock %}

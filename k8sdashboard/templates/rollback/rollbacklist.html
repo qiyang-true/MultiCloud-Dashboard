@@ -1,0 +1,97 @@
+{% extends 'common/base.html' %}
+{% block title %}Rollback History{% endblock %}
+{% block content %}
+<div class="layui-form" style="padding:10px;">
+    <select id="namespace-select" lay-filter="namespace" lay-search="">
+        <option value="">全部命名空间</option>
+        {% for ns in namespaces %}
+        <option value="{{ ns.metadata.name }}" {% if selected_namespace == ns.metadata.name %}selected{% endif %}>
+            {{ ns.metadata.name }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+    <tr>
+        <th>序号</th>
+        <th>ReplicaSet</th>
+        <th>namespace</th>
+        <th>Deployment</th>
+        <th>Images</th>
+        <th>Replicas</th>
+        <th>创建时间</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for i in rollbacklist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.name }}</td>
+            <td>{{ i.namespace }}</td>
+            <td>{{ i.deployment }}</td>
+            <td>
+                {% for img in i.images %}
+                {{ img.name }}: {{ img.image }}<br>
+                {% endfor %}
+            </td>
+            <td>{{ i.replicas }}</td>
+            <td>{{ i.creation_time }}</td>
+            <td>
+                <button class="layui-btn layui-btn-xs layui-btn-normal rollback-btn"
+                        data-name="{{ i.name }}"
+                        data-namespace="{{ i.namespace }}">
+                    回滚到此版本
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<script>
+layui.use(['form', 'layer'], function() {
+    var form = layui.form;
+    var $ = layui.$;
+    form.on('select(namespace)', function(data) {
+        var ns = data.value;
+        var url = new URL(window.location.href);
+        if (ns) {
+            url.searchParams.set('namespace', ns);
+        } else {
+            url.searchParams.delete('namespace');
+        }
+        window.location.href = url.toString();
+    });
+    $('.rollback-btn').on('click', function() {
+        var name = $(this).data('name');
+        var ns = $(this).data('namespace');
+        layer.confirm('确定回滚到 ReplicaSet: ' + name + ' 吗？', function(index) {
+            // 获取ReplicaSet关联的Deployment来获取镜像信息
+            $.post('/editkubernetes/getDeploymentNameFromReplicaset/', {
+                replicasetname: name,
+                namespace: ns
+            }, function(res) {
+                if (res.status == 1) {
+                    $.post('/editkubernetes/rollBackImage/', {
+                        deploymentname: res.deployment_name,
+                        namespace: ns,
+                        imagelist: JSON.stringify(res.data)
+                    }, function(ret) {
+                        if (ret.status == 1) {
+                            layer.msg('回滚成功', {icon: 1});
+                            setTimeout(function() { location.reload(); }, 1500);
+                        } else {
+                            layer.msg('回滚失败: ' + ret.info, {icon: 2});
+                        }
+                    });
+                } else {
+                    layer.msg('获取部署信息失败: ' + res.info, {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    });
+});
+</script>
+{% endblock %}

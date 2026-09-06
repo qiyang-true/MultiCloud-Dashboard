@@ -1,0 +1,51 @@
+{% extends 'common/base.html' %}
+{% block title %}RoleBindings{% endblock %}
+{% block content %}
+<style>
+select[name=namespace]{height: 38px;width:180px;text-indent:10px;line-height: 1.3;line-height: 38px\9;border-width: 1px;border-style: solid;background-color: #fff;border-radius: 2px;border-color: #e6e6e6;color:#666;margin-left:10px;margin-right:10px;}
+</style>
+<form action="" method="get">
+    <select name="namespace">
+        <option value="">--all-namespace</option>
+        {% for i in namespaces %}
+        <option value="{{ i.metadata.name }}" {% if selected_namespace == i.metadata.name %}selected{% endif %}>{{ i.metadata.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="hidden" name="leftpid" value="{{ request.GET.leftpid }}" />
+    <input type="hidden" name="leftid" value="{{ request.GET.leftid }}" />
+    <input type="hidden" name="topid" value="{{ request.GET.topid }}" />
+    <button class="layui-btn" lay-submit lay-filter="formDemo">查询</button>
+</form>
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Namespace</th>
+            <th>Role</th>
+            <th>Subjects</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for rb in rblist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ rb.metadata.name }}</td>
+            <td>{{ rb.metadata.namespace }}</td>
+            <td>{{ rb.role_ref.kind }}/{{ rb.role_ref.name }}</td>
+            <td>
+                {% for s in rb.subjects %}
+                <span>{{ s.kind }}/{{ s.name }}{% if s.namespace %} (ns: {{ s.namespace }}){% endif %}</span>{% if not forloop.last %}<br>{% endif %}
+                {% empty %}
+                <span style="color:#999">No subjects</span>
+                {% endfor %}
+            </td>
+            <td>{{ rb.metadata.creation_timestamp|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:#999">No RoleBindings found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

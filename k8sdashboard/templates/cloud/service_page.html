@@ -1,0 +1,45 @@
+{% extends 'common/base.html' %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block content %}
+<style>
+.cloud-head{display:flex;align-items:flex-end;justify-content:space-between;margin:18px 0 4px;border-left:5px solid {{ provider.color }};padding-left:12px;}
+.cloud-head h2{margin:0;font-size:20px;font-weight:600;}
+.cloud-head span{color:#8a8f99;font-size:13px;}
+</style>
+
+<div class="layui-container">
+    <div class="cloud-head">
+        <h2>{{ page.title }}</h2>
+        <span>{{ page.subtitle }}</span>
+    </div>
+    {% include 'cloud/_region_switch.html' %}
+
+    <fieldset class="layui-elem-field layui-field-title" style="margin-top:16px;">
+        <legend>{{ page.title }}</legend>
+    </fieldset>
+    <div class="layui-card">
+        <div class="layui-card-body">
+            <table class="layui-table" lay-skin="line" lay-size="sm">
+                <thead>
+                    <tr>
+                        {% for column in page.columns %}
+                        <th>{{ column }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in page.rows %}
+                    <tr>
+                        {% for cell in row %}
+                        <td>{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="{{ page.columns|length }}" style="text-align:center;color:#999;">暂无数据</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

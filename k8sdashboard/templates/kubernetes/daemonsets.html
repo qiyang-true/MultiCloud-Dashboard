@@ -1,0 +1,155 @@
+{% extends 'common/base.html' %}
+{% block title %}DaemonSets{% endblock %}
+{% block content %}
+<style>
+select[name=namespace]{height: 38px;width:180px;text-indent:10px;line-height: 1.3;line-height: 38px\9;border-width: 1px;border-style: solid;background-color: #fff;border-radius: 2px;border-color: #e6e6e6;color:#666;margin-left:10px;margin-right:10px;}
+</style>
+<form action="" method="get">
+    <select name="namespace">
+        <option value="">--all-namespace</option>
+        {% for i in namespaces %}
+        <option value="{{ i.metadata.name }}" {% if selected_namespace == i.metadata.name %}selected{% endif %}>{{ i.metadata.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="hidden" name="leftpid" value="{{ request.GET.leftpid }}" />
+    <input type="hidden" name="leftid" value="{{ request.GET.leftid }}" />
+    <input type="hidden" name="topid" value="{{ request.GET.topid }}" />
+    <button class="layui-btn" lay-submit lay-filter="formDemo">查询</button>
+</form>
+<table class="layui-table" lay-skin="line" lay-filter="parse-table-demo" lay-size="sm">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Namespace</th>
+            <th>Desired</th>
+            <th>Current</th>
+            <th>Ready</th>
+            <th>Images</th>
+            <th>Created</th>
+            {% if editDaemonset %}
+            <th>操作</th>
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for i in daemonsetlist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.metadata.name }}</td>
+            <td>{{ i.metadata.namespace }}</td>
+            <td>{{ i.status.desired_number_scheduled }}</td>
+            <td>{{ i.status.current_number_scheduled }}</td>
+            <td>{{ i.status.number_ready }}</td>
+            <td style="width:260px;word-break:break-all;">
+                {% for o in i.spec.template.spec.containers %}
+                {{ o.image }}<br>
+                {% endfor %}
+            </td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+            {% if editDaemonset %}
+            <td>
+                <button class="layui-btn layui-btn-sm edit-daemonset" namespace="{{ i.metadata.namespace }}" daemonsetname="{{ i.metadata.name }}">编辑</button>
+            </td>
+            {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="text-align:center;color:#999">No DaemonSets found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if editDaemonset %}
+<script>
+layui.use('layer', function(){
+    var layer = layui.layer;
+});
+
+$('.edit-daemonset').click(function(index)
+{
+    var namespace = $(this).attr('namespace');
+    var daemonsetname = $(this).attr('daemonsetname');
+    var kind = 'DaemonSet';
+    var getResourceUrl = base_url + '/editkubernetes/getdaemonsetresource/';
+    var editResourceUrl = base_url + '/editkubernetes/updatedaemonsetresource/';
+    var saveResourceUrl = base_url + '/editkubernetes/makefile/';
+
+    $.post(getResourceUrl, {namespace: namespace, daemonsetname: daemonsetname}, function(data, status){
+        if(status == "success"){
+            if(data.status == 1){
+                var RamdomNum = Math.ceil(Math.random() * 1000);
+                var width = 900;
+                var height = 600;
+                var leftOffset = ($(window).width() - width) / 2;
+                var topOffset = ($(window).height() - height) / 2;
+                var layerIndex = layer.open({
+                    type: 1
+                    ,title: namespace+' / '+daemonsetname
+                    ,area: [width+'px', height+'px']
+                    ,shade: 0.001
+                    ,resize: false
+                    ,maxmin: false
+                    ,offset: [topOffset, leftOffset]
+                    ,content: '<textarea class="layui-code" id="textareabox'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+data.data+'</textarea>'
+                    ,btn: ['应用', '干跑', '保存到模板', '关闭']
+                    ,yes: function(){
+                        var yaml = $('#textareabox'+RamdomNum).val();
+                        $.post(editResourceUrl, {namespace: namespace, daemonsetname: daemonsetname, yaml: yaml}, function(data, status){
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                    layer.close(layerIndex);
+                                }else{
+                                    layer.msg(data.info, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                    }
+                    ,btn2: function(){
+                        var yaml = $('#textareabox'+RamdomNum).val();
+                        $.post(editResourceUrl, {namespace: namespace, daemonsetname: daemonsetname, yaml: yaml, dryRun: true}, function(data, status){
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                }else{
+                                    layer.msg(data.info, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                        return false;
+                    }
+                    ,btn3: function(){
+                        var contents = $('#textareabox'+RamdomNum).val();
+                        var filename = kind+'-'+namespace+'-'+daemonsetname+'-'+Math.ceil(Math.random() * 10000)+'.yaml';
+                        $.post(saveResourceUrl, {filename: filename, contents: contents}, function(data, status){
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                    layer.close(layerIndex);
+                                }else{
+                                    layer.msg(data.info);
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                        return false;
+                    }
+                    ,btn4: function(){
+                        layer.close(layerIndex);
+                    }
+                });
+            }else{
+                layer.msg(data.info);
+            }
+        }else{
+            layer.msg('请求错误');
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

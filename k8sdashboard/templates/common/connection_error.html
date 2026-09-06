@@ -1,0 +1,15 @@
+{% extends 'common/base.html' %}
+{% block title %}连接失败{% endblock %}
+{% block content %}
+<div style="min-height:280px;"></div>
+<script>
+layui.use('layer', function(){
+    var layer = layui.layer;
+    layer.alert('Kubernetes 集群连接失败，请检查集群网络或集群配置。', {
+        title: '提示',
+        icon: 2,
+        btn: ['知道了']
+    });
+});
+</script>
+{% endblock %}

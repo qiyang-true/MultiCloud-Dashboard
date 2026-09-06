@@ -1,0 +1,58 @@
+{% load custom_filters %}
+<div class="layui-layout layui-layout-admin">
+    <div class="layui-header">
+        <div class="layui-logo">Dashboard</div>
+        <!-- 头部区域（可配合layui已有的水平导航） -->
+        <ul class="layui-nav layui-layout-left">
+            <li class="layui-nav-item"><a href="/" class="pointer <?php if(!$_GET['topid']){echo 'layui-this';};?>">首页</a></li>
+            <!-- <li class="layui-nav-item"><a href="/{$vo.controller}/{$vo.method}?topid={$vo.id}" class="pointer <?php if($vo['id'] == $_GET['topid']){echo 'layui-this';};?>">{{ vo.menu }}</a></li> -->
+            {% for vo in topnav %}
+            <li class="layui-nav-item {% if vo.id|add:0 == request.GET.topid|default:'0'|add:0 %}layui-this{% endif %}"><a href="/{{ vo.controller }}/{{ vo.method }}{{ vo.method|check_url }}topid={{ vo.id }}" class="pointer">{{ vo.menu }}</a></li>
+			{% endfor %}
+            <!-- <li class="layui-nav-item"><a href="/{{ vo.controller }}/{{ vo.method }}?topid={{ vo.id }}" class="pointer">{{ vo.menu }}</a></li> -->
+        </ul>
+        <ul class="layui-nav layui-layout-right">
+            <li class="layui-nav-item">
+                <a href="javascript:;">{% if cluster_list %}{{ currentcontext }}{% else %}请选着集群{% endif %}</a>
+                <dl class="layui-nav-child">
+					{% for vo in cluster_list %}
+					<dd><a style="cursor:pointer;" class="set-currentcontext" clusterid="{{ vo.id }}">{{ vo.clustername }}@{{ vo.username }}</a></dd>
+					{% endfor %}
+                </dl>
+            </li>
+            <li class="layui-nav-item">
+                <a href="javascript:;">{{ apiversion }}</a>
+                <dl class="layui-nav-child">
+					<dd><a class="pointer set-apiversion" apiversion="v1.20">API v1.20</a></dd>
+					<dd><a class="pointer set-apiversion" apiversion="v1.18">API v1.18</a></dd>
+					<dd><a class="pointer set-apiversion" apiversion="v1.16">API v1.16</a></dd>
+                </dl>
+            </li>
+			<li class="layui-nav-item">
+				<a href="javascript:;">{{ current_username }}</a>
+			</li>
+            <li class="layui-nav-item"><a href="/index/help">帮助</a></li>
+            <li class="layui-nav-item"><a href="/login/logout">退了</a></li>
+        </ul>
+    </div>
+
+    <div class="layui-side layui-bg-black">
+        <div class="layui-side-scroll">
+			<ul class="layui-nav layui-nav-tree" lay-filter="test">
+                {% for key, menu_data in leftmenu.items %}
+				<li class="layui-nav-item {% if menu_data.id|add:0 == request.GET.leftpid|default:'0'|add:0 %}layui-nav-itemed{% endif %}">
+					<a href="javascript:;">{{ menu_data.menu }}</a>
+                    {% for k, child_menu_data in menu_data.child_menu.items %}
+					<dl class="layui-nav-child">
+                        <dd {{ request.GET.leftid|set_layui_this:child_menu_data.id }}><a class="set-layui-this" href="/{{ child_menu_data.controller }}/{{ child_menu_data.method }}/?topid={{ child_menu_data.top_menu_id }}&leftpid={{ menu_data.id }}&leftid={{ child_menu_data.id }}">{{ child_menu_data.menu }}</a></dd>
+					</dl>
+                    {% endfor %}
+				</li>
+                {% endfor %}
+			</ul>
+        </div>
+    </div>
+
+    <div class="layui-body">
+        <!-- 内容主体区域 -->
+        <div style="padding: 15px;">

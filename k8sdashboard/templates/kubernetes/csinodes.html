@@ -1,0 +1,28 @@
+{% extends 'common/base.html' %}
+{% block title %}CSINodes{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+    <tr>
+        <th>序号</th>
+        <th>name</th>
+        <th>drivers</th>
+        <th>创建时间</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for i in csinodelist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.metadata.name }}</td>
+            <td>
+                {% for driver in i.spec.drivers %}
+                {{ driver.name }}<br>
+                {% endfor %}
+            </td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

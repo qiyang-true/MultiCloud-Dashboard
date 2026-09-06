@@ -1,0 +1,30 @@
+{% extends 'common/base.html' %}
+{% block title %}EndpointSlices{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+    <tr>
+        <th>序号</th>
+        <th>name</th>
+        <th>namespace</th>
+        <th>address type</th>
+        <th>ports</th>
+        <th>endpoints</th>
+        <th>创建时间</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for i in endpointslicelist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.metadata.name }}</td>
+            <td>{{ i.metadata.namespace }}</td>
+            <td>{{ i.address_type }}</td>
+            <td>{{ i.ports|length }}</td>
+            <td>{{ i.endpoints|length }}</td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

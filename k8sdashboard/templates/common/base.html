@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/layui/css/layui.css" type="text/css"/>
+    <link rel="stylesheet" href="/static/css/common.css" type="text/css"/>
+    <script src="/static/js/jquery-1.8.0.min.js"></script>
+    <script src="/static/layui/layui.js"></script>
+    <script src="/static/js/public.js"></script>
+    <script src="/static/js/common.js"></script>
+    <title>{% block title %} title {% endblock %}</title>
+    <script>
+    // 获取当前域名和端口
+    var base_url = window.location.origin;
+
+    /*
+        * @param kind 资源类型，如 deployment,pod
+        * @param name 资源的名称，deployment的名称，pod的名称
+        * @param namespace 名称空间
+        * @param saveResourceUrl 保存资源到模板的地址
+        * @param getResourceUrl 获取资源的地址
+        * @param editResourceUrl 编辑资源地址
+    */
+    function editResources(kind, name, namespace, saveResourceUrl, getResourceUrl, editResourceUrl, index)
+    {
+        $.post(getResourceUrl, {namespace: namespace, name: name}, function(data, status){
+            console.log(data);
+            console.log(status);
+            console.log(kind);
+            console.log(name);
+            console.log(namespace);
+            console.log(saveResourceUrl);
+            console.log(getResourceUrl);
+            console.log(editResourceUrl);
+            console.log(index);
+            if(status == "success"){
+                console.log(data);
+                if(data.status == 1){
+                    var RamdomNum = Math.ceil(Math.random() * 1000);
+                    var width = 900;
+                    var height = 600;
+                    var leftOffset = ($(window).width() - width) / 2;
+                    var topOffset = ($(window).height() - height) / 2;
+                    layer.open({
+                        type: 1
+                        ,title: namespace+' / '+name
+                        ,area: [width+'px', height+'px']
+                        ,shade: 0.001
+                        ,resize: false
+                        ,maxmin: false
+                        ,offset: [topOffset, leftOffset]
+                        ,content: '<textarea class="layui-code" id="textareabox'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+data.data+'</textarea>'
+    
+                        ,btn: ['应用', '干跑', '保存到模板', '关闭']
+                        ,yes: function(){
+                            var yaml = $('#textareabox'+RamdomNum).val();
+                            $.post(editResourceUrl, {namespace: namespace, name: name, yaml: yaml}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                    }else{
+                                        layer.msg(data.url.message, {time: 8000});
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                        }
+                        ,btn2: function(){
+                            var yaml = $('#textareabox'+RamdomNum).val();
+                            $.post(editResourceUrl, {namespace: namespace, name: name, yaml: yaml, dryRun: true}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg('dry run success');
+                                    }else{
+                                        layer.msg(data.url.message, {time: 8000});
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                            return false;
+                        }
+                        ,btn3: function(){
+                            var contents = $('#textareabox'+RamdomNum).val();
+                            var filename = kind+'-'+namespace+'-'+name+'-'+Math.ceil(Math.random() * 10000)+'.yaml';
+                            $.post(saveResourceUrl, {filename: filename, contents: contents}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                    }else{
+                                        layer.msg(data.info);
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                            return false;
+                        }
+                        ,btn4: function(){
+                            layer.close(index);
+                        }
+                    });
+                }else{
+                    layer.msg(data.info);
+                }
+            }else{
+                layer.msg('请求错误');
+            }
+        });
+    }
+    </script>
+    <style type="text/css">.layui-code{background-color: #213444;color: white;}
+    .page a,.page span{width: 30px;height: 30px;display: inline-block;background: #009688;border-radius: 3px;text-align: center;line-height: 30px;color: white;margin: 2px;}
+    .page span{background:#1ec5b2;}
+    .pointer{cursor:pointer;}
+    </style>
+</head>
+<body class="layui-layout-body">
+{% include 'common/body1.html' %}
+{% block content %} content {% endblock %}
+{% include 'common/body2.html' %}
+</body>
+</html>

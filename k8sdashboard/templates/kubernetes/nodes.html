@@ -1,0 +1,75 @@
+{% extends 'common/base.html' %}
+{% block title %}Nodes{% endblock %}
+{% block content %}
+<style>
+.progress-bar-container{background:#eee;border-radius:3px;height:18px;width:100px;display:inline-block;vertical-align:middle}
+.progress-bar-fill{height:100%;border-radius:3px;text-align:center;color:#fff;font-size:11px;line-height:18px;min-width:30px}
+.label-tag{display:inline-block;background:#f0f0f0;border:1px solid #ddd;border-radius:3px;padding:1px 6px;margin:1px 2px;font-size:11px;color:#555}
+.taint-tag{display:inline-block;background:#fff3e0;border:1px solid #ffb74d;border-radius:3px;padding:1px 6px;margin:1px 2px;font-size:11px;color:#e65100}
+.status-ready{color:#5FB878;font-weight:bold}
+.status-notready{color:#FF5722;font-weight:bold}
+</style>
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Roles</th>
+            <th>Version</th>
+            <th>OS Image</th>
+            <th>Kernel</th>
+            <th>Container Runtime</th>
+            <th>CPU Capacity</th>
+            <th>Memory Capacity</th>
+            <th>Pods Capacity</th>
+            <th>Internal IP</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for n in nodelist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ n.name }}</td>
+            <td>{% if n.status == 'Ready' %}<span class="status-ready">{{ n.status }}</span>{% else %}<span class="status-notready">{{ n.status }}</span>{% endif %}</td>
+            <td>{% for r in n.roles %}<span class="label-tag">{{ r }}</span>{% endfor %}</td>
+            <td>{{ n.version }}</td>
+            <td style="max-width:250px;word-break:break-all">{{ n.os }}</td>
+            <td>{{ n.kernel }}</td>
+            <td>{{ n.container_runtime }}</td>
+            <td>{{ n.capacity_cpu }}</td>
+            <td>{{ n.capacity_memory }}</td>
+            <td>{{ n.capacity_pods }}</td>
+            <td>{% for addr in n.addresses %}{% if addr.type == 'InternalIP' %}{{ addr.address }}{% endif %}{% endfor %}</td>
+            <td>{{ n.create_time }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="13" style="text-align:center;color:#999">No nodes found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% for n in nodelist %}
+<fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+    <legend>{{ n.name }}</legend>
+</fieldset>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <div style="display:flex;flex-wrap:wrap;gap:20px;">
+            <div style="flex:1;min-width:300px;">
+                <strong>Labels:</strong><br>
+                {% for l in n.labels %}<span class="label-tag">{{ l.key }}{% if l.value %}: {{ l.value }}{% endif %}</span>{% endfor %}
+            </div>
+            <div style="flex:1;min-width:250px;">
+                <strong>Taints:</strong><br>
+                {% for t in n.taints %}<span class="taint-tag">{{ t.key }}{% if t.value %}: {{ t.value }}{% endif %} ({{ t.effect }})</span>{% empty %}<span style="color:#999">None</span>{% endfor %}
+            </div>
+            <div style="flex:1;min-width:250px;">
+                <strong>Conditions:</strong><br>
+                {% for c in n.conditions %}<span class="label-tag">{% if c.status == 'True' %}<span style="color:#5FB878">&#10003;</span>{% else %}<span style="color:#FF5722">&#10007;</span>{% endif %} {{ c.type }}{% if c.reason %} ({{ c.reason }}){% endif %}</span><br>{% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

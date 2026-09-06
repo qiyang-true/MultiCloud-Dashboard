@@ -1,0 +1,244 @@
+{% extends 'common/base.html' %}
+{% block title %}deploymenys{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-filter="parse-table-demo" lay-size="sm">
+    <thead>
+    <tr>
+        <th lay-data="{checkbox:true}">序号</th>
+        <th lay-data="{field:'joinTime', width:150}">name</th>
+        <th lay-data="{field:'joinTime', width:150}">创建时间</th>
+        </if>
+    </tr>
+    </thead>
+    <tbody>
+    {% for i  in ingressclasslist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.metadata.name }}</td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<include file="Public/page"/>
+<script>
+layui.use('layer', function(){
+    var layer = layui.layer;
+});
+
+$('.grayscale-ingress').click(function(index){
+    var namespace = $(this).attr('namespace');
+    var kindname = $(this).attr('kindname');
+    var kind = 'ingress';
+    var getResourceUrl = '__MODULE__/Release/getServiceWeightIngress';
+    var editResourceUrl = '__MODULE__/Release/setServiceWeightIngress';
+    var width = 460;
+    var height = 280;
+    var leftOffset = ($(window).width() - width) / 2;
+    var topOffset = ($(window).height() - height) / 2;
+    
+    $.post(getResourceUrl, {namespace: namespace, kindname: kindname}, function(data, status){
+        console.log(data);
+        if(status == 'success'){
+            if(data.status == 1){
+                var html = '';
+                html += '<div style="padding: 20px;"><table class="layui-table">';
+                var i = 1;
+                for(var key in data.info){
+                    html += '<tr><td><span class="service-'+i+'">'+key+'</span>: (<span class="percentage-'+i+'">'+data.info[key]+'</span>%)</td><td><div class="layui-btn-group"><span style="width:30px;" class="layui-btn layui-btn-xs changepercentage" type="less-'+i+'">-</span><span style="width:30px;" class="layui-btn layui-btn-xs changepercentage" type="add-'+i+'">+</span></div></td></tr>';
+                    i++;
+                }
+                html += '</table></div>';
+                layer.open({
+                    type: 1
+                    ,title: '灰度 '+kind+' / '+kindname
+                    ,area: [width+'px', height+'px']
+                    ,shade: 0.001
+                    ,resize: false
+                    ,maxmin: false
+                    ,offset: [topOffset, leftOffset]
+                    ,content: html
+                    ,btn: ['应用', '关闭']
+                    ,yes: function(){
+                        var percentage1 = parseInt($('.percentage-1').html());
+                        var percentage2 = parseInt($('.percentage-2').html());
+                        var service1 = $('.service-1').html();
+                        var service2 = $('.service-2').html();
+                        var serviceWeight = '{"'+service1+'":"'+percentage1+'","'+service2+'":"'+percentage2+'"}';
+                        console.log(serviceWeight);
+                        $.post(editResourceUrl, {namespace: namespace, ingressname: kindname, serviceWeight: serviceWeight}, function(data, status){
+                            console.log(data);
+                            if(status == 'success'){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                    layer.close(index);
+                                }else{
+                                    if(data.url.message){
+                                        var msg = data.url.message;
+                                    }else{
+                                        var msg = data.info;
+                                    }
+                                    layer.msg(msg, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                    }
+                    ,btn2: function(){
+                        layer.close(index);
+                    }
+                });
+            }else{
+                layer.msg(data.info);
+            }
+        }else{
+            layer.msg('请求错误');
+        }
+    });
+});
+
+$(document).on('click', '.changepercentage', function(){
+    var type = $(this).attr('type');
+    var percentage1 = parseInt($('.percentage-1').html());
+    var percentage2 = parseInt($('.percentage-2').html());
+    switch(type){
+        case 'add-1':
+            percentage1 = percentage1 + 10;
+            percentage2 = 100 - percentage1;
+        break;
+        case 'less-1':
+            percentage1 = percentage1 - 10;
+            percentage2 = 100 - percentage1;
+        break;
+        case 'add-2':
+            percentage2 = percentage2 + 10;
+            percentage1 = 100 - percentage2;
+        break;
+        case 'less-2':
+            percentage2 = percentage2 - 10;
+            percentage1 = 100 - percentage2;
+        break;
+    }
+    if(percentage1 < 0){
+        percentage1 = 0;
+        percentage2 = 100;
+    }
+    if(percentage1 > 100){
+        percentage1 = 100;
+        percentage2 = 0;
+    }
+    if(percentage2 < 0){
+        percentage2 = 0;
+        percentage1 = 100;
+    }
+    if(percentage2 > 100){
+        percentage2 = 100;
+        percentage1 = 1;
+    }
+    $('.percentage-1').html(percentage1);
+    $('.percentage-2').html(percentage2);
+});
+
+
+$('.edit-ingress').click(function(index)
+{
+    var namespace = $(this).attr('namespace');
+    var kindname = $(this).attr('kindname');
+    var kind = 'ingress';
+    var getResourceUrl = '__MODULE__/Release/getIngress';
+    var editResourceUrl = '__MODULE__/Release/editIngress';
+    var saveResourceUrl = '__MODULE__/Template/editFileContent';
+    
+    $.post(getResourceUrl, {namespace: namespace, kindname: kindname}, function(data, status){
+        if(status == "success"){
+            console.log(data);
+            if(data.status == 1){
+                var RamdomNum = Math.ceil(Math.random() * 1000);
+                var width = 900;
+                var height = 600;
+                var leftOffset = ($(window).width() - width) / 2;
+                var topOffset = ($(window).height() - height) / 2;
+                layer.open({
+                    type: 1 //此处以iframe举例
+                    ,title: namespace+' / '+kindname
+                    ,area: [width+'px', height+'px']
+                    ,shade: 0.001
+                    ,resize: false
+                    ,maxmin: false
+                    ,offset: [topOffset, leftOffset]
+                    ,content: '<textarea class="layui-code" id="textareabox'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+data.url+'</textarea>'
+
+                    ,btn: ['应用', '干跑', '保存到模板', '关闭']
+                    ,yes: function(){
+                        var yaml = $('#textareabox'+RamdomNum).val();
+                        $.post(editResourceUrl, {namespace: namespace, kindname: kindname, yaml: yaml}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                }else{
+                                    if(data.url.message){
+                                        var msg = data.info+': '+data.url.message;
+                                    }else{
+                                        var msg = data.info;
+                                    }
+                                    layer.msg(msg, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                    }
+                    ,btn2: function(){
+                        var yaml = $('#textareabox'+RamdomNum).val();
+                        $.post(editResourceUrl, {namespace: namespace, kindname: kindname, yaml: yaml, dryRun: true}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg('dry run success');
+                                }else{
+                                    if(data.url.message){
+                                        var msg = data.info+': '+data.url.message;
+                                    }else{
+                                        var msg = data.info;
+                                    }
+                                    layer.msg(msg, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                        return false;
+                    }
+                    ,btn3: function(){
+                        var content = $('#textareabox'+RamdomNum).val();
+                        var filename = kind+'-'+namespace+'-'+kindname+'-'+Math.ceil(Math.random() * 10000)+'.yaml';
+                        $.post(saveResourceUrl, {filename: filename, content: content}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                }else{
+                                    layer.msg(data.info);
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                        return false;
+                    }
+                    ,btn4: function(){
+                        layer.close(index);
+                    }
+                });
+            }else{
+                layer.msg(data.info+': '+data.url.message, {time: 3000});
+            }
+        }else{
+            layer.msg('请求失败', {time: 3000});
+        }
+    });
+});
+</script>
+{% endblock %}

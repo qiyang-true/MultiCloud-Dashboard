@@ -1,0 +1,256 @@
+{% extends 'common/base.html' %}
+{% block title %}集群列表{% endblock %}
+{% block content %}
+		<fieldset class="layui-elem-field layui-field-title">
+			<legend>集群列表</legend>
+		</fieldset>
+		<table class="layui-table" lay-size="sm">
+		  <colgroup>
+			<col>
+			<col>
+			<col>
+			<col>
+			<col>
+			{% if copyToRelease %}
+			<col>
+			{% endif %}
+			{% if copyToMamager %}
+			<col>
+			{% endif %}
+			{% if renameClusterUser or clusterDelete %}
+			<col width="200">
+			{% endif %}
+		  </colgroup>
+		  <thead>
+			<tr>
+			  <th>序号</th>
+			  <th>上下文</th>
+			  <th>集群用户</th>
+			  <th>集群名称</th>
+			  <th>地址</th>
+			  <!-- <th>复制<i class="layui-icon layui-icon-help" id="tips1" style="font-size: 10px; color: #1E9FFF;"></i></th> -->
+			  <th>复制<i class="layui-icon layui-icon-help" id="tips2" style="font-size: 10px; color: #1E9FFF;"></i></th>
+			  {% if renameClusterUser or clusterDelete %}
+			  <th>操作</th>
+			  {% endif %}
+			</tr> 
+		  </thead>
+		  <tbody>
+			{% for cluster in clusters %}
+			<tr>
+			  <td>{{forloop.counter}}</td>
+			  <td>{{cluster.username}}@{{cluster.clustername}}</td>
+			  <td>{{cluster.username}}</td>
+			  <td>{{cluster.clustername}}</td>
+			  <td>{{cluster.server}}</td>
+			  <!-- {% if copyToRelease %}
+			  <td>
+				<span class="layui-btn layui-btn-xs copyToRelease" clusterid="{{cluster.id}}">到发版</span>
+			  </td>
+			  {% endif %} -->
+			  {% if copyToMamager %}
+			  <td>
+				<span class="layui-btn layui-btn-xs copytomamager" clustername="{{cluster.clustername}}" username="{{cluster.username}}" clusterid="{{cluster.id}}">到管理员</span>
+			  </td>
+			  {% endif %}
+			  {% if renameClusterUser or clusterDelete %}
+			  <td>
+				{% if renameClusterUser %}
+				<span class="layui-btn layui-btn-xs renamecluster" clustername="{{cluster.clustername}}" username="{{cluster.username}}" clusterid="{{cluster.id}}">修改</span>
+				{% endif %}
+				{% if clusterDelete %}
+				<span class="layui-btn layui-btn-xs deletecluster" clustername="{{cluster.username}}@{{cluster.clustername}}" clusterid="{{cluster.id}}">删除</span>
+				{% endif %}
+			  </td>
+			  {% endif %}
+			</tr>
+			{% endfor %}
+		  </tbody>
+		</table>
+<script>
+layui.use('layer', function(){
+	var layer = layui.layer;
+});
+</script>
+{% if copyToRelease %}
+<script>
+$('.copyToRelease').click(function(){
+	var clusterid = $(this).attr('clusterid');
+	layer.confirm('复制到 “发版集群” 列表中？', {
+		btn: ['确定','取消']
+	}, function(){
+		$.post('/cluster/copyToRelease', {clusterid: clusterid}, function(data, status){
+			console.log(data);
+			if(status == 'success'){
+				if(data.status == 1){
+					layer.msg(data.info);
+				}else{
+					layer.msg(data.info);
+				}
+			}else{
+				layer.msg('请求错误');
+			}
+		});
+	});
+});
+$('#tips1').click(function(){
+	layer.tips('复制到 “发版集群” 列表中。', '#tips1');
+});
+$('#tips2').click(function(){
+	layer.tips('复制到其他管理员 “别人列表” 中。', '#tips2');
+});
+</script>
+{% endif %}
+{% if clusterDelete %}
+<script>
+$('.deletecluster').click(function (){
+	var THIS = $(this);
+	var clustername = $(this).attr('clustername');
+	var clusterid = $(this).attr('clusterid');
+	layer.confirm('确定删除集群 '+clustername+' ？', {
+		btn: ['确定','取消']
+	}, function(){
+		$.post('/cluster/clusterdelete/', {id: clusterid}, function(data, status){
+			console.log(data);
+			if(status == 'success'){
+				if(data.status == 1){
+					THIS.parents('tr').remove();
+					layer.msg(data.info);
+					window.location.reload();
+				}else{
+					layer.msg(data.info);
+				}
+			}else{
+				layer.msg('请求错误');
+			}
+		});
+	});
+});
+</script>
+{% endif %}
+{% if renameClusterUser %}
+<script>
+	$('.renamecluster').click(function(index)
+	{
+		var clusterid = $(this).attr('clusterid');
+		var username = $(this).attr('username');
+		var clustername = $(this).attr('clustername');
+		var editResourceUrl = '/cluster/renameclusteruser/';
+		
+		var width = 500;
+		var height = 360;
+		var leftOffset = ($(window).width() - width) / 2;
+		var topOffset = ($(window).height() - height) / 2;
+		
+		var html = '<div style="padding:20px;"><table class="layui-table"><colgroup><col width="150"><col width="200"><col></colgroup>';
+		html += '<thead><tr><th>类型</th><th>名称</th></tr></thead><tbody>';
+		html += '<tr><td>用户名称</td><td><input type="text" name="username" required  lay-verify="required" value="'+username+'" autocomplete="off" class="layui-input"></td></tr>';
+		html += '<tr><td>集群名称</td><td><input type="text" name="clustername" required  lay-verify="required" value="'+clustername+'" autocomplete="off" class="layui-input"></td></tr>';
+		html += '</tbody></table></div>';
+		
+		layer.open({
+			type: 1
+			,title: '修改名称'
+			,area: [width+'px', height+'px']
+			,shade: 0.001
+			,resize: false
+			,maxmin: false
+			,offset: [topOffset, leftOffset]
+			,content: html
+			,btn: ['修改', '关闭']
+			,yes: function(){
+				var username = $('input[name=username]').val();
+				var clustername = $('input[name=clustername]').val();
+				$.post(editResourceUrl, {id: clusterid, clustername: clustername, username: username}, function(data, status){
+					console.log(data);
+					if(status == 'success'){
+						if(data.status == 1){
+							layer.msg(data.info);
+							layer.close(index);
+							window.location.reload();
+						}else{
+							layer.msg(data.info);
+						}
+					}else{
+						layer.msg('请求错误');
+					}
+				});
+			}
+			,btn2: function(){
+				layer.close(index);
+			}
+		});
+	});
+</script>
+{% endif %}
+{% if copyToMamager %}
+<script>
+$('.copytomamager').click(function(index)
+{
+	var clusterid = $(this).attr('clusterid');
+	var username = $(this).attr('username');
+	var clustername = $(this).attr('clustername');
+	var editResourceUrl = '/cluster/copyToMamager/';
+	var getResourceUrl = '/cluster/getManagerList/';
+	var width = 300;
+	var height = 200;
+	var leftOffset = ($(window).width() - width) / 2;
+	var topOffset = ($(window).height() - height) / 2;
+	
+	$.post(getResourceUrl, {}, function(data, status){
+		console.log(data);
+		if(status == 'success'){
+			if(data.status == 1){
+				//console.log(data.url[0]);
+				var html = '<div style="padding:20px;padding-left:30px;">管理员列表：<select name="managerid" style="margin-top:20px;width: 150px;height: 35px;border-radius: 3px;border-color: #c7c3c3;color: #666;">';
+				html += '<option value="">请选择</option>';
+				for(var i = 0; i < data.url.length; i++){
+					html += '<option value="'+data.url[i].id+'">'+data.url[i].username+'</option>';
+				}
+				html += '</select></div>';
+				
+				layer.open({
+					type: 1
+					,title: '修改名称'
+					,area: [width+'px', height+'px']
+					,shade: 0.001
+					,resize: false
+					,maxmin: false
+					,offset: [topOffset, leftOffset]
+					,content: html
+					,btn: ['复制', '关闭']
+					,yes: function(){
+						var managerid = $('select[name=managerid]').val();
+						if(!managerid){
+							layer.msg('请选择管理员');
+							return false;
+						}
+						$.post(editResourceUrl, {clusterid: clusterid, managerid: managerid}, function(data, status){
+							console.log(data);
+							if(status == 'success'){
+								if(data.status == 1){
+									layer.msg(data.info);
+									layer.close(index);
+								}else{
+									layer.msg(data.info);
+								}
+							}else{
+								layer.msg('请求错误');
+							}
+						});
+					}
+					,btn2: function(){
+						layer.close(index);
+					}
+				});
+			}else{
+			
+			}
+		}else{
+			
+		}
+	});
+});
+</script>
+{% endif %}
+{% endblock %}

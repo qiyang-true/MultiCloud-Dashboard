@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/layui/css/layui.css" type="text/css"/>
+    <link rel="stylesheet" href="/static/css/common.css" type="text/css"/>
+    <script src="/static/js/jquery-1.8.0.min.js"></script>
+    <script src="/static/layui/layui.js"></script>
+    <script src="/static/js/public.js"></script>
+    <script src="/static/js/common.js"></script>
+    <title>Pod日志 - {{ pod_name }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
+        
+        .header {
+            background-color: #393D49;
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            color: #ccc;
+        }
+        
+        .main-container {
+            padding: 20px;
+            width: 90%;
+            margin: 0 auto;
+        }
+        
+        .log-container {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            padding: 20px;
+            border-radius: 5px;
+            height: 70vh;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .log-line {
+            margin-bottom: 2px;
+            padding: 2px 0;
+        }
+        
+        .log-line:hover {
+            background-color: #2d2d30;
+        }
+        
+        .log-timestamp {
+            color: #608b4e;
+            margin-right: 10px;
+        }
+        
+        .log-error {
+            color: #f44747;
+        }
+        
+        .log-warning {
+            color: #ffcc02;
+        }
+        
+        .log-info {
+            color: #4fc1ff;
+        }
+        
+        .log-debug {
+            color: #9cdcfe;
+        }
+        
+        .controls {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background-color: #4caf50;
+        }
+        
+        .status-disconnected {
+            background-color: #f44336;
+        }
+        
+        .status-connecting {
+            background-color: #ff9800;
+        }
+        
+        .auto-scroll {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .back-btn {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Pod日志查看</h1>
+        <p>命名空间: <strong>{{ namespace }}</strong> | Pod名称: <strong>{{ pod_name }}</strong></p>
+    </div>
+    
+    <div class="main-container">
+        <div class="layui-card">
+            <div class="layui-card-body">
+                <div class="controls">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span id="statusText">正在连接...</span>
+                    <button class="layui-btn layui-btn-sm" id="startBtn" onclick="startLogs()">开始</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-danger" id="stopBtn" onclick="stopLogs()" disabled>停止</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-normal" onclick="clearLogs()">清空</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-warm" onclick="toggleAutoScroll()">自动滚动: <span id="autoScrollStatus">开启</span></button>
+                    <button class="layui-btn layui-btn-sm layui-btn-primary" id="reconnectBtn" onclick="reconnectWebSocket()" style="display: none;">重新连接</button>
+                </div>
+                
+                <div class="log-container" id="logContainer">
+                    <div class="log-line">等待日志数据...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="auto-scroll">
+        <button class="layui-btn layui-btn-sm" id="scrollToBottom" onclick="scrollToBottom()" style="display: none;">↓ 滚动到底部</button>
+    </div>
+    <script>
+    let websocket = null;
+    let isConnected = false;
+    let autoScroll = true;
+    let logCount = 0;
+    const maxLogLines = 1000; // 最大保留日志行数
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    let reconnectDelay = 1000; // 初始重连延迟（毫秒）
+    const maxReconnectDelay = 30000; // 最大重连延迟（毫秒）
+
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/pod-logs/{{ namespace }}/{{ pod_name }}/{{ container_name }}/?cluster_id={{ cluster_id }}`;
+        
+        websocket = new WebSocket(wsUrl);
+        
+        websocket.onopen = function(event) {
+            console.log('WebSocket连接成功');
+            console.log(websocket);
+            isConnected = true;
+            reconnectAttempts = 0; // 重置重连计数
+            reconnectDelay = 1000; // 重置重连延迟
+            updateStatus('已连接', 'connected');
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            hideReconnectButton();
+        };
+        
+        websocket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            handleLogMessage(data);
+        };
+        
+        websocket.onclose = function(event) {
+            isConnected = false;
+            updateStatus('连接已断开', 'disconnected');
+            console.log('连接已断开');
+            console.log(event);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            // 如果不是主动关闭，尝试自动重连
+            if (event.code !== 1000) {
+                console.log('尝试自动重连');
+                attemptReconnect();
+            }
+        };
+        
+        websocket.onerror = function(error) {
+            console.error('WebSocket错误:', error);
+            updateStatus('连接错误', 'disconnected');
+            console.log('连接错误');
+            console.log(error);
+            // 尝试自动重连而不是立即显示重连按钮
+            attemptReconnect();
+        };
+    }
+
+    function handleLogMessage(data) {
+        const logContainer = document.getElementById('logContainer');
+        
+        if (data.type === 'log') {
+            addLogLine(data.message, data.timestamp);
+        } else if (data.type === 'error') {
+            addLogLine(`[错误] ${data.message}`, null, 'error');
+            // 如果是连接错误，显示重连按钮
+            if (data.message.includes('连接中断') || data.message.includes('重试')) {
+                console.log('显示重连按钮');
+                showReconnectButton();
+            }
+        } else if (data.type === 'status') {
+            addLogLine(`[状态] ${data.message}`, null, 'info');
+            // 更新状态指示器
+            if (data.message.includes('已连接')) {
+                updateStatus('已连接', 'connected');
+            } else if (data.message.includes('正在连接')) {
+                updateStatus('正在连接...', 'connecting');
+            } else if (data.message.includes('日志流已结束')) {
+                updateStatus('日志流已结束', 'disconnected');
+            }
+        }
+        
+        // 限制日志行数
+        if (logCount > maxLogLines) {
+            const firstLine = logContainer.querySelector('.log-line');
+            if (firstLine) {
+                firstLine.remove();
+                logCount--;
+            }
+        }
+        
+        // 自动滚动到底部
+        if (autoScroll) {
+            scrollToBottom();
+        } else {
+            showScrollButton();
+        }
+    }
+
+    function addLogLine(message, timestamp, type = 'info') {
+        const logContainer = document.getElementById('logContainer');
+        const logLine = document.createElement('div');
+        logLine.className = `log-line log-${type}`;
+        
+        let content = '';
+        if (timestamp) {
+            const date = new Date(timestamp * 1000);
+            content += `<span class="log-timestamp">[${date.toLocaleTimeString()}]</span>`;
+        }
+        content += escapeHtml(message);
+        
+        logLine.innerHTML = content;
+        logContainer.appendChild(logLine);
+        logCount++;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function updateStatus(text, status) {
+        document.getElementById('statusText').textContent = text;
+        const indicator = document.getElementById('statusIndicator');
+        indicator.className = `status-indicator status-${status}`;
+    }
+
+    function startLogs() {
+        if (!isConnected) {
+            connectWebSocket();
+        } else {
+            websocket.send(JSON.stringify({type: 'start_logs'}));
+        }
+    }
+
+    function stopLogs() {
+        if (websocket && isConnected) {
+            websocket.send(JSON.stringify({type: 'stop_logs'}));
+            websocket.close();
+        }
+    }
+
+    function clearLogs() {
+        const logContainer = document.getElementById('logContainer');
+        logContainer.innerHTML = '<div class="log-line">日志已清空...</div>';
+        logCount = 0;
+    }
+
+    function scrollToBottom() {
+        const logContainer = document.getElementById('logContainer');
+        logContainer.scrollTop = logContainer.scrollHeight;
+        document.getElementById('scrollToBottom').style.display = 'none';
+    }
+
+    function showScrollButton() {
+        document.getElementById('scrollToBottom').style.display = 'inline-block';
+    }
+
+    function toggleAutoScroll() {
+        autoScroll = !autoScroll;
+        document.getElementById('autoScrollStatus').textContent = autoScroll ? '开启' : '关闭';
+        if (autoScroll) {
+            scrollToBottom();
+        }
+    }
+
+    function showReconnectButton() {
+        document.getElementById('reconnectBtn').style.display = 'inline-block';
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = true;
+    }
+
+    function hideReconnectButton() {
+        document.getElementById('reconnectBtn').style.display = 'none';
+    }
+
+    function attemptReconnect() {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            console.log('已达到最大重连次数，显示手动重连按钮');
+            showReconnectButton();
+            return;
+        }
+        
+        reconnectAttempts++;
+        updateStatus(`正在重新连接... (${reconnectAttempts}/${maxReconnectAttempts})`, 'connecting');
+        
+        // 关闭现有连接
+        if (websocket) {
+            websocket.close();
+        }
+        
+        // 使用指数退避延迟重连
+        setTimeout(() => {
+            console.log(`第 ${reconnectAttempts} 次重连尝试`);
+            connectWebSocket();
+        }, reconnectDelay);
+        
+        // 增加下次重连延迟，但不超过最大值
+        reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
+    }
+
+    function reconnectWebSocket() {
+        hideReconnectButton();
+        reconnectAttempts = 0; // 重置重连计数
+        reconnectDelay = 1000; // 重置重连延迟
+        updateStatus('正在重新连接...', 'connecting');
+        
+        // 关闭现有连接
+        if (websocket) {
+            websocket.close();
+        }
+        
+        // 延迟重连，避免立即重连
+        setTimeout(() => {
+            connectWebSocket();
+        }, 1000);
+    }
+
+    // 监听滚动事件
+    document.getElementById('logContainer').addEventListener('scroll', function() {
+        const container = this;
+        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+        
+        if (isAtBottom) {
+            autoScroll = true;
+            document.getElementById('autoScrollStatus').textContent = '开启';
+            document.getElementById('scrollToBottom').style.display = 'none';
+        } else {
+            autoScroll = false;
+            document.getElementById('autoScrollStatus').textContent = '关闭';
+            showScrollButton();
+        }
+    });
+
+    // 页面加载时自动连接
+    window.onload = function() {
+        connectWebSocket();
+    };
+
+    // 页面关闭时断开连接
+    window.onbeforeunload = function() {
+        if (websocket) {
+            websocket.close();
+        }
+    };
+    </script>
+</body>
+</html>

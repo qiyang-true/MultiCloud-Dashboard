@@ -1,0 +1,15 @@
+{% if cloud_error %}
+<script>
+layui.use('layer', function(){
+    var layer = layui.layer;
+    var errors = [
+        {% for error in cloud_error %}'{{ error|escapejs }}',{% endfor %}
+    ];
+    layer.alert(errors.join('\n'), {
+        title: '提示',
+        icon: 2,
+        btn: ['知道了']
+    });
+});
+</script>
+{% endif %}

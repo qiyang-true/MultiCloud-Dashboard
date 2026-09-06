@@ -1,0 +1,12 @@
+{% extends 'common/base.html' %}
+{% block title %}No Cluster Configured{% endblock %}
+{% block content %}
+<div style="text-align:center;padding:80px 20px;">
+    <h2 style="color:#FF5722;">没有可用的 Kubernetes 集群配置</h2>
+    <p style="font-size:16px;color:#666;margin-top:20px;">
+        系统中还没有添加 Kubernetes 集群配置，请先到
+        <a href="/cluster/clusterlist/" style="color:#009688;">集群管理</a>
+        中添加集群后再访问资源。
+    </p>
+</div>
+{% endblock %}

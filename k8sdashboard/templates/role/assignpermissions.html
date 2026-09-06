@@ -1,0 +1,163 @@
+{% extends 'common/base.html' %}
+{% block title %}分配权限{% endblock %}
+{% block content %}
+<style>
+.perm-page{padding:16px 4px;}
+.perm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.perm-header h2{margin:0;font-size:20px;font-weight:600;color:#1f2937;}
+.perm-header span{color:#6b7280;font-size:13px;}
+.perm-toolbar{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;margin-bottom:16px;flex-wrap:wrap;}
+.perm-search{width:280px;max-width:100%;}
+.perm-toolbar .spacer{flex:1;}
+.perm-count{color:#4b5563;font-size:13px;}
+.perm-count strong{color:#009688;font-size:16px;}
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;}
+.perm-card{background:#fff;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;}
+.perm-card-head{display:flex;align-items:center;gap:8px;background:#f7faf9;border-bottom:1px solid #eef0f2;padding:10px 14px;font-weight:600;color:#1f2937;}
+.perm-card-head .module-check{margin:0;}
+.perm-card-head .count{font-weight:400;color:#6b7280;font-size:12px;margin-left:auto;}
+.perm-card-body{max-height:380px;overflow-y:auto;padding:8px 14px;}
+.perm-item{display:flex;align-items:center;gap:9px;padding:7px 6px;border-radius:4px;cursor:pointer;color:#374151;font-size:13px;transition:background .15s;}
+.perm-item:hover{background:#f1f5f4;}
+.perm-item input{margin:0;accent-color:#009688;width:15px;height:15px;flex-shrink:0;}
+.level-1{padding-left:16px;font-weight:600;color:#1f2937;}
+.level-2{padding-left:34px;}
+.level-3{padding-left:56px;color:#6b7280;font-size:12px;}
+.perm-empty{color:#9ca3af;text-align:center;padding:24px 0;}
+@media (max-width:768px){
+  .perm-grid{grid-template-columns:1fr;}
+  .perm-header{flex-direction:column;align-items:flex-start;gap:6px;}
+}
+</style>
+
+<div class="layui-container perm-page">
+    <div class="perm-header">
+        <div>
+            <h2>分配权限</h2>
+            <span>角色：{{ role_name }}</span>
+        </div>
+        <span>勾选功能模块，保存后立即生效</span>
+    </div>
+
+    <div class="perm-toolbar">
+        <input type="text" class="layui-input perm-search" placeholder="搜索菜单名称">
+        <span class="perm-count">已选择 <strong id="selectedCount">0</strong> 项</span>
+        <span class="spacer"></span>
+        <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="checkAll">全选</button>
+        <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="uncheckAll">清空</button>
+        <button type="button" class="layui-btn layui-btn-sm" id="savePerm">保存修改</button>
+    </div>
+
+    <form id="auth">
+        <input type="hidden" name="id" value="{{ id }}">
+        <div class="perm-grid">
+            {% for vo in menu_list %}
+            {% if vo.level == 0 and not forloop.first %}
+            </div>
+            </div>
+            {% endif %}
+            {% if vo.level == 0 %}
+            <div class="perm-card" data-module="{{ vo.menu }}">
+                <div class="perm-card-head">
+                    <input type="checkbox" class="module-check perm-check" name="authority_id[]" value="{{ vo.id }}" {% if vo.id in auth_id_arr %}checked{% endif %} title="全选本模块">
+                    <span>{{ vo.menu }}</span>
+                    <span class="count">0</span>
+                </div>
+                <div class="perm-card-body">
+            {% else %}
+            <label class="perm-item level-{{ vo.level }}">
+                <input type="checkbox" class="perm-check" name="authority_id[]" value="{{ vo.id }}" {% if vo.id in auth_id_arr %}checked{% endif %}>
+                <span>{{ vo.menu }}</span>
+            </label>
+            {% endif %}
+            {% if forloop.last %}
+                </div>
+                </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </form>
+</div>
+
+<script>
+layui.use(['layer', 'form'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+
+    function updateCounts(){
+        var total = 0;
+        $('.perm-card').each(function(){
+            var $card = $(this);
+            var count = $card.find('.perm-check').length;
+            var checked = $card.find('.perm-check:checked').length;
+            var allChecked = count > 0 && checked === count;
+            $card.find('.module-check').prop('checked', allChecked);
+            $card.find('.count').text(checked + ' / ' + count);
+            total += checked;
+        });
+        $('#selectedCount').text(total);
+    }
+
+    $('.module-check').on('change', function(){
+        var checked = $(this).prop('checked');
+        $(this).closest('.perm-card').find('.perm-check').prop('checked', checked);
+        updateCounts();
+    });
+
+    $(document).on('change', '.perm-check', function(){
+        updateCounts();
+    });
+
+    $('#checkAll').on('click', function(){
+        $('.perm-check').prop('checked', true);
+        updateCounts();
+    });
+
+    $('#uncheckAll').on('click', function(){
+        $('.perm-check').prop('checked', false);
+        updateCounts();
+    });
+
+    $('#savePerm').on('click', function(){
+        var authority_ids = [];
+        var roleid = parseInt('{{ id }}', 10);
+        $('.perm-check').each(function(){
+            if ($(this).prop('checked')) {
+                authority_ids.push($(this).val());
+            }
+        });
+        if (!authority_ids.length) {
+            layer.msg('请至少选择一个权限', {icon: 2});
+            return;
+        }
+        $.post('/role/updaterole/', {
+            authority_id: authority_ids.join(', '),
+            roleid: roleid
+        }, function(data, status){
+            if (status === 'success') {
+                layer.msg(data.info, {icon: data.status == 1 ? 1 : 2});
+            } else {
+                layer.msg('请求错误', {icon: 2});
+            }
+        });
+    });
+
+    $('.perm-search').on('input', function(){
+        var keyword = $.trim($(this).val()).toLowerCase();
+        $('.perm-item').each(function(){
+            var match = $(this).text().toLowerCase().indexOf(keyword) >= 0;
+            $(this).toggle(match);
+        });
+        if (keyword) {
+            $('.perm-card').each(function(){
+                $(this).toggle($(this).find('.perm-item:visible').length > 0);
+            });
+        } else {
+            $('.perm-card').show();
+        }
+    });
+
+    updateCounts();
+});
+</script>
+{% endblock %}

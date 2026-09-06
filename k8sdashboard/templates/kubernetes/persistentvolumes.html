@@ -1,0 +1,34 @@
+{% extends 'common/base.html' %}
+{% block title %}PersistentVolumes{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+    <tr>
+        <th>序号</th>
+        <th>name</th>
+        <th>capacity</th>
+        <th>access modes</th>
+        <th>reclaim policy</th>
+        <th>status</th>
+        <th>claim</th>
+        <th>storage class</th>
+        <th>创建时间</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for i in pvlist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.metadata.name }}</td>
+            <td>{{ i.spec.capacity.storage|default:"-" }}</td>
+            <td>{{ i.spec.access_modes|join:", " }}</td>
+            <td>{{ i.spec.persistent_volume_reclaim_policy }}</td>
+            <td>{{ i.status.phase }}</td>
+            <td>{{ i.spec.claim_ref.name|default:"-" }}</td>
+            <td>{{ i.spec.storage_class_name|default:"-" }}</td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

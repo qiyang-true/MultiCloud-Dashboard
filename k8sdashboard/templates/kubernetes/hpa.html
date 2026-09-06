@@ -1,0 +1,59 @@
+{% extends 'common/base.html' %}
+{% block title %}HPA{% endblock %}
+{% block content %}
+<style>
+select[name=namespace]{height: 38px;width:180px;text-indent:10px;line-height: 1.3;line-height: 38px\9;border-width: 1px;border-style: solid;background-color: #fff;border-radius: 2px;border-color: #e6e6e6;color:#666;margin-left:10px;margin-right:10px;}
+</style>
+<form action="" method="get">
+    <select name="namespace">
+        <option value="">--all-namespace</option>
+        {% for i in namespaces %}
+        <option value="{{ i.metadata.name }}" {% if selected_namespace == i.metadata.name %}selected{% endif %}>{{ i.metadata.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="hidden" name="leftpid" value="{{ request.GET.leftpid }}" />
+    <input type="hidden" name="leftid" value="{{ request.GET.leftid }}" />
+    <input type="hidden" name="topid" value="{{ request.GET.topid }}" />
+    <button class="layui-btn" lay-submit lay-filter="formDemo">查询</button>
+</form>
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Namespace</th>
+            <th>Target</th>
+            <th>Min Replicas</th>
+            <th>Max Replicas</th>
+            <th>Current Replicas</th>
+            <th>Metrics</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for h in hpalist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ h.metadata.name }}</td>
+            <td>{{ h.metadata.namespace }}</td>
+            <td>{{ h.spec.scale_target_ref.kind }}/{{ h.spec.scale_target_ref.name }}</td>
+            <td>{{ h.spec.min_replicas }}</td>
+            <td>{{ h.spec.max_replicas }}</td>
+            <td>{{ h.status.current_replicas }}</td>
+            <td>
+                {% for m in h.status.current_metrics %}
+                {{ m.type }}:{% if m.resource %}{{ m.resource.name }}=
+                    {% if m.resource.current.average_utilization is not None %}{{ m.resource.current.average_utilization }}%{% endif %}
+                    {% if m.resource.current.average_value %}{{ m.resource.current.average_value }}{% endif %}
+                {% endif %}
+                {% if not forloop.last %}<br>{% endif %}
+                {% endfor %}
+            </td>
+            <td>{{ h.metadata.creation_timestamp|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="text-align:center;color:#999">No HPA resources found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

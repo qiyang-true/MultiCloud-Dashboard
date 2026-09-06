@@ -1,0 +1,53 @@
+{% extends 'common/base.html' %}
+{% block title %}PodDisruptionBudgets{% endblock %}
+{% block content %}
+<style>
+select[name=namespace]{height: 38px;width:180px;text-indent:10px;line-height: 1.3;line-height: 38px\9;border-width: 1px;border-style: solid;background-color: #fff;border-radius: 2px;border-color: #e6e6e6;color:#666;margin-left:10px;margin-right:10px;}
+</style>
+<form action="" method="get">
+    <select name="namespace">
+        <option value="">--all-namespace</option>
+        {% for i in namespaces %}
+        <option value="{{ i.metadata.name }}" {% if selected_namespace == i.metadata.name %}selected{% endif %}>{{ i.metadata.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="hidden" name="leftpid" value="{{ request.GET.leftpid }}" />
+    <input type="hidden" name="leftid" value="{{ request.GET.leftid }}" />
+    <input type="hidden" name="topid" value="{{ request.GET.topid }}" />
+    <button class="layui-btn" lay-submit lay-filter="formDemo">查询</button>
+</form>
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Namespace</th>
+            <th>Min Available</th>
+            <th>Max Unavailable</th>
+            <th>Allowed Disruptions</th>
+            <th>Selector</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in pdblist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ p.metadata.name }}</td>
+            <td>{{ p.metadata.namespace }}</td>
+            <td>{% if p.spec.min_available %}{{ p.spec.min_available }}{% else %}<span style="color:#999">--</span>{% endif %}</td>
+            <td>{% if p.spec.max_unavailable %}{{ p.spec.max_unavailable }}{% else %}<span style="color:#999">--</span>{% endif %}</td>
+            <td>{{ p.status.disruptions_allowed }}</td>
+            <td>
+                {% for k, v in p.spec.selector.match_labels.items %}
+                <span style="display:inline-block;background:#f0f0f0;border-radius:3px;padding:1px 6px;margin:1px;font-size:11px;">{{ k }}={{ v }}</span>
+                {% endfor %}
+            </td>
+            <td>{{ p.metadata.creation_timestamp|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;color:#999">No PodDisruptionBudgets found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

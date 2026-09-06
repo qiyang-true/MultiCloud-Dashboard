@@ -1,0 +1,144 @@
+{% extends 'common/base.html' %}
+{% block title %}Service{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-filter="parse-table-demo" lay-size="sm">
+    <thead>
+    <tr>
+        <th lay-data="{checkbox:true}">序号</th>
+        <th lay-data="{field:'joinTime', width:150}">name</th>
+        <th lay-data="{field:'joinTime', width:150}">namespace</th>
+        <th lay-data="{field:'joinTime', width:150}">type</th>
+        <th lay-data="{field:'joinTime', width:150}">clusterIP</th>
+        <th lay-data="{field:'joinTime', width:150}">loadBalancer</th>
+        <!-- <th width="150">labels</th> -->
+        <th lay-data="{field:'joinTime', width:150}">创建时间</th>
+        <if condition="$editService">
+        <th lay-data="{field:'sign'}">操作</th>
+        </if>
+    </tr>
+    </thead>
+            <!-- <td><volist name="vo.metadata.labels" id="o">{$key}={$o}<br></volist></td> -->
+    <tbody>
+    {% for i in servicelist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td><a href="">{{ i.metadata.name }}</a></td>
+            <td><a href="">{{ i.metadata.namespace }}</a></td>
+            <td>{{ i.spec.type }}</td>
+            <td>{{ i.spec.cluster_ip }}</td>
+            <td>
+                {% for key,value in i.status.load_balancer.items %}
+                {{ key }}={{ value }}<br>
+                {% endfor %}
+            </td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+            <if condition="$editService">
+            <td style="width:150px;">
+                <if condition="$editService">
+                <button class="layui-btn layui-btn-sm edit-service" namespace="{{ i.metadata.namespace }}" servicename="{{ i.metadata.name }}">编辑</button>
+                </if>
+            </td>
+            </if>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<include file="Public/page"/>
+<script>
+layui.use('layer', function(){
+    var layer = layui.layer;
+});
+
+$('.edit-service').click(function(index)
+{
+    var namespace = $(this).attr('namespace');
+    var servicename = $(this).attr('servicename');
+    var kind = 'service';
+    var getResourceUrl = base_url + '/editkubernetes/getServiceResource/';
+    var editResourceUrl = base_url + '/editkubernetes/updateServiceResource/';
+    var editResourceDryRunUrl = base_url + '/editkubernetes/updateServiceResourceDryRun/';
+    var saveResourceUrl = base_url + '/editkubernetes/makeFile/';
+    
+    $.post(getResourceUrl, {namespace: namespace, servicename: servicename}, function(data, status){
+        if(status == "success"){
+            console.log(data);
+            if(data.status == 1){
+                var RamdomNum = Math.ceil(Math.random() * 1000);
+                var width = 900;
+                var height = 600;
+                var leftOffset = ($(window).width() - width) / 2;
+                var topOffset = ($(window).height() - height) / 2;
+                var layerIndex = layer.open({
+                    type: 1 //此处以iframe举例
+                    ,title: namespace+' / '+servicename
+                    ,area: [width+'px', height+'px']
+                    ,shade: 0.001
+                    ,resize: false
+                    ,maxmin: false
+                    ,offset: [topOffset, leftOffset]
+                    ,content: '<textarea class="layui-code" id="textareabox'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+data.data+'</textarea>'
+
+                    ,btn: ['应用', '干跑', '保存到模板', '关闭']
+                    ,yes: function(){
+                        var yaml = $('#textareabox'+RamdomNum).val();
+                        $.post(editResourceUrl, {namespace: namespace, servicename: servicename, yaml: yaml}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                    layer.close(layerIndex);
+                                }else{
+                                    layer.msg(data.info, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                    }
+                    ,btn2: function(){
+                        var yaml = $('#textareabox'+RamdomNum).val();
+                        $.post(editResourceDryRunUrl, {namespace: namespace, servicename: servicename, yaml: yaml}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                }else{
+                                    layer.msg(data.info, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                        return false;
+                    }
+                    ,btn3: function(){
+                        var content = $('#textareabox'+RamdomNum).val();
+                        var filename = kind+'-'+namespace+'-'+servicename+'-'+Math.ceil(Math.random() * 10000)+'.yaml';
+                        $.post(saveResourceUrl, {filename: filename, content: content}, function(data, status){
+                            console.log(data);
+                            if(status == "success"){
+                                if(data.status == 1){
+                                    layer.msg(data.info);
+                                }else{
+                                    layer.msg(data.info, {time: 8000});
+                                }
+                            }else{
+                                layer.msg('请求错误');
+                            }
+                        });
+                        return false;
+                    }
+                    ,btn4: function(){
+                        layer.close(index);
+                    }
+                });
+            }else{
+                layer.msg(data.info, {time: 3000});
+            }
+        }else{
+            layer.msg('请求失败', {time: 3000});
+        }
+    });
+});
+</script>
+{% endblock %}

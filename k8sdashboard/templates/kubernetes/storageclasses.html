@@ -1,0 +1,30 @@
+{% extends 'common/base.html' %}
+{% block title %}StorageClasses{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-size="sm">
+    <thead>
+    <tr>
+        <th>序号</th>
+        <th>name</th>
+        <th>provisioner</th>
+        <th>reclaim policy</th>
+        <th>volume binding mode</th>
+        <th>allow volume expansion</th>
+        <th>创建时间</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for i in sclist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ i.metadata.name }}</td>
+            <td>{{ i.provisioner }}</td>
+            <td>{{ i.reclaim_policy|default:"Delete" }}</td>
+            <td>{{ i.volume_binding_mode|default:"Immediate" }}</td>
+            <td>{{ i.allow_volume_expansion|default:"False" }}</td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

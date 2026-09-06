@@ -1,0 +1,45 @@
+{% extends 'common/base.html' %}
+{% block title %}deploymenys{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-filter="parse-table-demo" lay-size="sm">
+    <thead>
+    <tr>
+        <th lay-data="{checkbox:true}">序号</th>
+        <th lay-data="{field:'joinTime', width:150}">name</th>
+        <th lay-data="{field:'joinTime', width:150}">namespace</th>
+        <th lay-data="{field:'joinTime', width:150}">images</th>
+        <th lay-data="{field:'joinTime', width:150}">replicas</th>
+        <th lay-data="{field:'joinTime', width:150}">selector</th>
+        <th lay-data="{field:'joinTime', width:150}">labels</th>
+        <th lay-data="{field:'sign'}">创建时间</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for i in statefulsetlist %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td><a href="">{{ i.metadata.name }}</a></td>
+            <td><a href="">{{ i.metadata.namespace }}</a></td>
+            <td>
+                {% for o in i.spec.template.spec.containers %}
+                {{ o.image }}<br>
+                {% endfor %}
+            </td>
+            <td>{{ i.spec.replicas }}</td>
+            <td>
+                {% for key,value in i.spec.selector.match_labels.items %}
+                {{ key }}={{ value }}<br>
+                {% endfor %}
+            </td>
+            <td>
+                {% for key,value in i.metadata.labels.items %}
+                {{ key }}={{ value }}<br>
+                {% endfor %}
+            </td>
+            <td>{{ i.metadata.creation_timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<include file="Public/page"/>
+{% endblock %}

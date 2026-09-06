@@ -1,0 +1,299 @@
+{% extends 'common/base.html' %}
+{% block title %}pods{% endblock %}
+{% block content %}
+<style>
+select[name=namespace],input{height: 38px;width:180px;text-indent:10px;line-height: 1.3;line-height: 38px\9;border-width: 1px;border-style: solid;background-color: #fff;border-radius: 2px;border-color: #e6e6e6;color:#666;}
+input{height: 36px;}
+select[name=namespace]{margin-left:10px;margin-right:10px;}
+.metric-unavailable{color:#999;font-style:italic}
+.progress-bar-container{background:#eee;border-radius:3px;height:18px;width:100px;display:inline-block;vertical-align:middle;overflow:hidden}
+.progress-bar-fill{height:100%;border-radius:3px;text-align:center;color:#fff;font-size:11px;line-height:18px;min-width:30px}
+.pod-status-running{color:#2e7d32}
+.pod-status-pending{color:#f57f17}
+.pod-status-failed{color:#c62828}
+.pod-status-succeeded{color:#1565c0}
+.pod-status-unknown{color:#616161}
+</style>
+    <form action="" method="get">
+        <input type="text" name="podname" value="{{ pod_name }}" placeholder="搜索pod名称" autocomplete="off">
+        <select name="namespace">
+            <option value="">--all-namespace</option>
+            {% for i in namespaces %}
+            <option value="{{ i.metadata.name }}" {% if selected_namespace == i.metadata.name %}selected{% endif %}>{{ i.metadata.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="hidden" name="leftpid" value="{{ request.GET.leftpid }}" />
+        <input type="hidden" name="leftid" value="{{ request.GET.leftid }}" />
+        <input type="hidden" name="topid" value="{{ request.GET.topid }}" />
+        <button class="layui-btn" lay-submit lay-filter="formDemo">查询</button>
+    </form>
+    <table class="layui-table" lay-skin="line" lay-filter="parse-table-demo" lay-size="sm">
+        <colgroup>
+        <col>
+        <col>
+        <col>
+        <col>
+        <col>
+        <col>
+        <col>
+        <col>
+        </colgroup>
+        <thead>
+        <tr>
+            <th>序号</th>
+            <th>Pod Name</th>
+            <th>Namespace</th>
+            <th>NodeName</th>
+            <th>Pod IP</th>
+            <th>READY</th>
+            <th>STATUS</th>
+            {% if pod_metrics_available %}
+            <th>CPU Usage</th>
+            <th>CPU %</th>
+            <th>Memory Usage</th>
+            <th>Memory %</th>
+            {% endif %}
+            <th>创建时间</th>
+            {% if deletePod or editPods %}
+            <th lay-data="{field:'sign'}">操作</th>
+            {% endif %}
+        </tr>
+        </thead>
+                <!-- <td style="width:300px;word-break:break-all;"><volist name="vo.spec.containers" id="containers">{$containers.name}={$containers.image}<br></volist></td> -->
+        <tbody>
+        {% for i in podlist %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td style="width:300px;word-break:break-all;">{{ i.name }}</td>
+                <td>{{ i.namespace }}</td>
+                <td>{{ i.node_name }}</td>
+                <td>{{ i.pod_ip }}</td>
+                <td>{{ i.ready }}/{{ i.pod_total }}</td>
+                <td><span class="pod-status pod-status-{{ i.phase|lower }}">{{ i.phase }}</span></td>
+                {% if pod_metrics_available %}
+                <td>{% if i.cpu_usage %}{{ i.cpu_usage }} cores{% else %}<span class="metric-unavailable">--</span>{% endif %}</td>
+                <td>
+                    {% if i.cpu_pct is not None %}
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width:{% if i.cpu_pct > 100 %}100{% else %}{{ i.cpu_pct }}{% endif %}%;background-color:{{ i.cpu_bar_color }}">{{ i.cpu_pct }}%</div>
+                    </div>
+                    {% elif i.cpu_limits %}
+                    <span class="metric-unavailable">--</span>
+                    {% else %}
+                    <span class="metric-unavailable" title="No CPU limits set">--</span>
+                    {% endif %}
+                </td>
+                <td>{% if i.mem_usage %}{{ i.mem_usage }}{% else %}<span class="metric-unavailable">--</span>{% endif %}</td>
+                <td>
+                    {% if i.mem_pct is not None %}
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width:{% if i.mem_pct > 100 %}100{% else %}{{ i.mem_pct }}{% endif %}%;background-color:{{ i.mem_bar_color }}">{{ i.mem_pct }}%</div>
+                    </div>
+                    {% elif i.mem_limits %}
+                    <span class="metric-unavailable">--</span>
+                    {% else %}
+                    <span class="metric-unavailable" title="No memory limits set">--</span>
+                    {% endif %}
+                </td>
+                {% endif %}
+                <td>{{ i.create_time }}</td>
+                <td style="width:180px;">
+                    <div class="layui-btn-group">
+                        <a href="{% url 'podlogs' i.namespace i.name i.containers.0.name %}" target="_blank" class="layui-btn layui-btn-sm" style="color: #fff; text-decoration: none;">日志</a>
+                        {% if deletePod or editPods %}
+                            {% if editPods %}
+                            <button class="layui-btn layui-btn-sm edit-pod" namespace="{{ i.namespace }}" kindname="{{ i.name }}">编辑</button>
+                            {% endif %}
+                            {% if shortLogs %}
+                            <button class="layui-btn layui-btn-sm pod-logs" pod_name="{{ i.name }}" namespace="{{ i.namespace }}" kindname="{{ i.name }}">日志</button>
+                            {% endif %}
+                            {% if deletePod %}
+                            <button class="layui-btn layui-btn-sm delete-pod" namespace="{{ i.namespace }}" podname="{{ i.name }}">删除</button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if not pod_name and podlist.has_other_pages %}
+    <div class="pagination" style="text-align:right;">
+        <span class="step-links layui-box layui-laypage layui-laypage-default">
+            {% if podlist.has_previous %}
+            <a href="?page=1{% if request.GET.namespace %}&namespace={{ request.GET.namespace }}{% endif %}{% if request.GET.leftpid %}&leftpid={{ request.GET.leftpid }}{% endif %}{% if request.GET.leftid %}&leftid={{ request.GET.leftid }}{% endif %}{% if request.GET.topid %}&topid={{ request.GET.topid }}{% endif %}">&laquo; 首页</a>
+            <a href="?page={{ podlist.previous_page_number }}{% if request.GET.namespace %}&namespace={{ request.GET.namespace }}{% endif %}{% if request.GET.leftpid %}&leftpid={{ request.GET.leftpid }}{% endif %}{% if request.GET.leftid %}&leftid={{ request.GET.leftid }}{% endif %}{% if request.GET.topid %}&topid={{ request.GET.topid }}{% endif %}">上一页</a>
+            {% endif %}
+            <span class="current-page">
+                第 {{ podlist.number }} 页，共 {{ podlist.paginator.num_pages }} 页
+            </span>
+            {% if podlist.has_next %}
+            <a href="?page={{ podlist.next_page_number }}{% if request.GET.namespace %}&namespace={{ request.GET.namespace }}{% endif %}{% if request.GET.leftpid %}&leftpid={{ request.GET.leftpid }}{% endif %}{% if request.GET.leftid %}&leftid={{ request.GET.leftid }}{% endif %}{% if request.GET.topid %}&topid={{ request.GET.topid }}{% endif %}">下一页</a>
+            <a href="?page={{ podlist.paginator.num_pages }}{% if request.GET.namespace %}&namespace={{ request.GET.namespace }}{% endif %}{% if request.GET.leftpid %}&leftpid={{ request.GET.leftpid }}{% endif %}{% if request.GET.leftid %}&leftid={{ request.GET.leftid }}{% endif %}{% if request.GET.topid %}&topid={{ request.GET.topid }}{% endif %}">末页 &raquo;</a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+<script>
+    layui.use('layer', function(){
+        var layer = layui.layer;
+    });
+    
+    $('.edit-pod').click(function(index)
+    {
+        var podname = $(this).attr('kindname');
+        var namespace = $(this).attr('namespace');
+        var saveResourceUrl = base_url + '/editkubernetes/makeFile/';
+        var getResourceUrl = base_url + '/editkubernetes/getPodResource/';
+        var editResourceUrl = base_url + '/editkubernetes/updatePodResource/';
+        console.log(podname);
+        console.log(namespace);
+        console.log(index);
+        $.post(getResourceUrl, {namespace: namespace, podname: podname}, function(data, status){
+            console.log(data);
+            console.log(status);
+            if(status == "success"){
+                if(data.status == 1){
+                    var RamdomNum = Math.ceil(Math.random() * 1000);
+                    var width = 900;
+                    var height = 600;
+                    var leftOffset = ($(window).width() - width) / 2;
+                    var topOffset = ($(window).height() - height) / 2;
+                    var layerIndex = layer.open({
+                        type: 1
+                        ,title: namespace+' / '+podname
+                        ,area: [width+'px', height+'px']
+                        ,shade: 0.001
+                        ,resize: false
+                        ,maxmin: false
+                        ,offset: [topOffset, leftOffset]
+                        ,content: '<textarea class="layui-code" id="textareabox'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+data.data+'</textarea>'
+                        ,btn: ['应用', '干跑', '保存到模板', '关闭']
+                        ,yes: function(){
+                            var yaml = $('#textareabox'+RamdomNum).val();
+                            $.post(editResourceUrl, {namespace: namespace, podname: podname, yaml: yaml}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                        layer.close(layerIndex);
+                                    }else{
+                                        layer.msg(data.info, {time: 10000});
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                        }
+                        ,btn2: function(){
+                            var yaml = $('#textareabox'+RamdomNum).val();
+                            $.post(editResourceUrl, {namespace: namespace, podname: podname, yaml: yaml, dryRun: true}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                    }else{
+                                        layer.msg(data.info, {time: 10000});
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                            return false;
+                        }
+                        ,btn3: function(){
+                            var contents = $('#textareabox'+RamdomNum).val();
+                            var filename = kind+'-'+namespace+'-'+podname+'-'+Math.ceil(Math.random() * 10000)+'.yaml';
+                            $.post(saveResourceUrl, {filename: filename, contents: contents}, function(data, status){
+                                console.log(data);
+                                if(status == "success"){
+                                    if(data.status == 1){
+                                        layer.msg(data.info);
+                                    }else{
+                                        layer.msg(data.info);
+                                    }
+                                }else{
+                                    layer.msg('请求错误');
+                                }
+                            });
+                            return false;
+                        }
+                        ,btn4: function(){
+                            layer.close(layerIndex);
+                        }
+                    });
+                }else{
+                    layer.msg(data.info);
+                }
+            }else{
+                layer.msg('请求错误');
+            }
+        });
+    });
+    
+    $('.delete-pod').click(function(index)
+    {
+        var namespace = $(this).attr('namespace');
+        var podname = $(this).attr('podname');
+        var getResourceUrl = base_url + '/editkubernetes/deletePod/';
+        layer.confirm('确定删除Pod '+podname+' ？', {
+            btn: ['确定','取消']
+        }, function(){
+            $.post(getResourceUrl, {namespace: namespace, podname: podname}, function(data, status){
+                if(status == 'success'){
+                    console.log(data);
+                    if(data.status == 1){
+                        layer.msg(data.info,{time: 2000});
+                        setTimeout(function(){
+                            window.location.reload();
+                        }, 1500);
+                    }else{
+                        layer.msg(data.info);
+                    }
+                }else{
+                    layer.msg('请求错误');
+                }
+            });
+        });
+    });
+
+    $('.pod-logs').click(function(index)
+    {
+        var kind = 'pod';
+        var podname = $(this).attr('pod_name');
+        var namespace = $(this).attr('namespace');
+        var getResourceUrl = base_url + '/editkubernetes/getPodLogs/';
+        $.post(getResourceUrl, {namespace: namespace, podname: podname}, function(data, status){
+            if(status == "success"){
+                console.log(data);
+                if(data.status == 1){
+                    var RamdomNum = Math.ceil(Math.random() * 1000);
+                    var width = 1200;
+                    var height = 700;
+                    var leftOffset = ($(window).width() - width) / 2;
+                    var topOffset = ($(window).height() - height) / 2;
+                    var layerIndex = layer.open({
+                        type: 1
+                        ,title: namespace+' / '+podname
+                        ,area: [width+'px', height+'px']
+                        ,shade: 0.001
+                        ,resize: false
+                        ,maxmin: false
+                        ,offset: [topOffset, leftOffset]
+                        ,content: '<textarea class="layui-code" id="textareabox'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+data.data+'</textarea>'
+    
+                        ,btn: ['关闭']
+                        ,btn2: function(){
+                            layer.close(layerIndex);
+                        }
+                    });
+                }else{
+                    layer.msg(data.info);
+                }
+            }else{
+                layer.msg('请求错误');
+            }
+        });
+    });
+</script>
+{% endblock %}

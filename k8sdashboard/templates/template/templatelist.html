@@ -1,0 +1,328 @@
+{% extends 'common/base.html' %}
+{% block title %}角色列表{% endblock %}
+{% block content %}
+<table class="layui-table" lay-skin="line" lay-filter="parse-table-demo">
+	<thead>
+	<tr>
+		<th><input type="checkbox" id="selectAll" lay-skin="primary" lay-filter="selectAll"></th>
+		<th>序号</th>
+		<th>文件名</th>
+		<th>修改时间</th>
+		<th>操作</th>
+	</tr>
+	</thead>
+	<tbody>
+	<!-- <volist name="list" id="vo" key="j"> -->
+		{% for vo in template_list %}
+		<tr>
+			<td><input type="checkbox" class="row-checkbox" value="{{ vo.id }}" lay-skin="primary"></td>
+			<td>{{ forloop.counter }}</td>
+			<td>
+				<!-- <if condition="$vo['type'] == 'file'"> -->
+					<!-- </if> -->
+					<a>{{ vo.filename }}</a>
+			</td>
+			<td>{{ vo.atime }}</td>
+			<td>
+				<div class="layui-btn-group">
+					<button class="layui-btn layui-btn-sm editfile" filename="{{ vo.filename }}" fileid="{{ vo.id }}">编辑</button>
+					<button class="layui-btn layui-btn-sm renamefile" filename="{{ vo.filename }}" fileid="{{ vo.id }}">改名</button>
+					<button class="layui-btn layui-btn-sm deletefile" filename="{{ vo.filename }}" fileid="{{ vo.id }}">删除</button>
+				</div>
+			</td>
+		</tr>
+		{% endfor %}
+	<!-- </volist> -->
+	</tbody>
+</table>
+
+<!-- 批量操作区域 -->
+<div style="margin-top: 15px; width: 100%;">
+	<div class="layui-form" style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px;">
+		<div style="display: flex; align-items: center;">
+			<label class="layui-form-label" style="width: auto; margin-right: 8px;">部署到集群：</label>
+			<select name="firstCategory" id="firstCategory" lay-filter="firstCategory" style="min-width: 120px;" placeholder="请选择集群">
+				<option value="" selected>请选择集群</option>
+				<option value="kubernetes">eks@prd</option>
+				<option value="docker">eks@dev</option>
+			</select>
+		</div>
+		<div style="display: flex; align-items: center;">
+			<label class="layui-form-label" style="width: auto; margin-right: 8px;">名称空间：</label>
+			<select name="secondCategory" id="secondCategory" lay-filter="secondCategory" style="min-width: 100px;" placeholder="请选择名称空间">
+				<option value="default" selected>default</option>
+				<option value="dev">test</option>
+				<option value="prd">staging</option>
+			</select>
+		</div>
+		<div>
+			<button class="layui-btn layui-btn-sm" id="batchAssign">部署到集群</button>
+		</div>
+		<div>
+			<span id="selectedCount" style="color: #666;">已选择 0 项</span>
+		</div>
+	</div>
+</div>
+
+<div class="layui-container" style="margin-top: 15px;">
+	<div class="layui-row">
+		<div class="layui-col-md3">
+			<table>
+				<tr>
+					<td><input type="text" name="filename" required  lay-verify="required" placeholder="请输入文件名" autocomplete="off" class="layui-input"></td>
+					<td><button class="layui-btn createfile" lay-submit lay-filter="formDemo">创建文件</button></td>
+				</tr>
+			</table>
+		</div>
+		<div class="layui-col-md9">
+		</div>
+	</div>
+</div>
+<script>
+	var layer, form;
+	layui.use(['layer', 'form'], function(){
+		layer = layui.layer;
+		form = layui.form;
+	});
+	
+	// 复选框功能
+	$(document).ready(function(){
+		// 全选/取消全选功能
+		$('#selectAll').change(function(){
+			var isChecked = $(this).prop('checked');
+			$('.row-checkbox').prop('checked', isChecked);
+			updateSelectedCount();
+		});
+		
+		// 单个复选框变化时更新全选状态
+		$('.row-checkbox').change(function(){
+			var totalCheckboxes = $('.row-checkbox').length;
+			var checkedCheckboxes = $('.row-checkbox:checked').length;
+			
+			$('#selectAll').prop('checked', totalCheckboxes === checkedCheckboxes);
+			updateSelectedCount();
+		});
+		
+		// 更新选中数量显示
+		function updateSelectedCount(){
+			var count = $('.row-checkbox:checked').length;
+			$('#selectedCount').text('已选择 ' + count + ' 项');
+		}
+		
+		// 两级下拉框数据
+		var categoryData = {
+			'kubernetes': [
+				{value: 'pods', text: 'Pods'},
+				{value: 'services', text: 'Services'},
+				{value: 'deployments', text: 'Deployments'},
+				{value: 'configmaps', text: 'ConfigMaps'},
+				{value: 'secrets', text: 'Secrets'}
+			],
+			'docker': [
+				{value: 'containers', text: '容器'},
+				{value: 'images', text: '镜像'},
+				{value: 'volumes', text: '卷'},
+				{value: 'networks', text: '网络'}
+			],
+			'monitoring': [
+				{value: 'metrics', text: '指标'},
+				{value: 'logs', text: '日志'},
+				{value: 'alerts', text: '告警'},
+				{value: 'dashboards', text: '仪表板'}
+			],
+			'security': [
+				{value: 'rbac', text: 'RBAC'},
+				{value: 'policies', text: '策略'},
+				{value: 'certificates', text: '证书'},
+				{value: 'secrets', text: '密钥'}
+			]
+		};
+		
+		// 一级下拉框变化事件
+		form.on('select(firstCategory)', function(data){
+			var firstValue = data.value;
+			var secondSelect = $('#secondCategory');
+			
+			// 清空二级下拉框
+			secondSelect.html('<option value="">请选择二级分类</option>');
+			
+			// 根据一级分类填充二级下拉框
+			if(firstValue && categoryData[firstValue]){
+				$.each(categoryData[firstValue], function(index, item){
+					secondSelect.append('<option value="' + item.value + '">' + item.text + '</option>');
+				});
+			}
+			
+			// 重新渲染表单
+			form.render('select');
+		});
+		
+		// 批量分配功能
+		$('#batchAssign').click(function(){
+			var selectedIds = [];
+			$('.row-checkbox:checked').each(function(){
+				selectedIds.push($(this).val());
+			});
+			
+			if(selectedIds.length === 0){
+				layer.msg('请先选择要分配的项目');
+				return;
+			}
+			
+			var firstCategory = $('#firstCategory').val();
+			var secondCategory = $('#secondCategory').val();
+			
+			if(!firstCategory){
+				layer.msg('请选择一级分类');
+				return;
+			}
+			
+			if(!secondCategory){
+				layer.msg('请选择二级分类');
+				return;
+			}
+			
+			layer.confirm('确定要将选中的 ' + selectedIds.length + ' 个项目分配到 ' + 
+				$('#firstCategory option:selected').text() + ' - ' + 
+				$('#secondCategory option:selected').text() + ' 分类下吗？', {
+				btn: ['确定','取消']
+			}, function(){
+				$.post('/template/batchAssign/', {
+					ids: selectedIds,
+					firstCategory: firstCategory,
+					secondCategory: secondCategory
+				}, function(data, status){
+					if(status == 'success'){
+						if(data.status == 1){
+							layer.msg(data.info);
+							// 分配成功后刷新页面
+							window.location.reload();
+						}else{
+							layer.msg(data.info);
+						}
+					}else{
+						layer.msg('请求错误');
+					}
+				});
+			});
+		});
+		
+	});
+	
+	$('.editfile').click(function(index){
+		var filename = $(this).attr('filename');
+		var fileid = $(this).attr('fileid');
+		console.log(filename);
+		$.post('/template/updatetemplate/', {id: fileid}, function(data, status){
+			if(status == 'success'){
+				if(data.status == 1){
+					var contents = data.info ? data.info : '';
+					console.log(data);
+					var RamdomNum = Math.ceil(Math.random() * 1000);
+					var width = 900;
+					var height = 600;
+					var leftOffset = ($(window).width() - width) / 2;
+					var topOffset = ($(window).height() - height) / 2;
+					layer.open({
+						type: 1 //此处以iframe举例
+						,title: filename
+						,area: [width+'px', height+'px']
+						,shade: 0.001
+						,resize: false
+						,maxmin: false
+						,offset: [topOffset, leftOffset]
+						,content: '<textarea class="layui-code" id="filecontent'+RamdomNum+'" contenteditable="true" style="resize:none;width:'+(width-38)+'px;height:'+(height-150)+'px;margin-top:0px;font-size:14px;">'+contents+'</textarea>'
+
+						,btn: ['保存', '关闭']
+						,yes: function(){
+							var contents = $('#filecontent'+RamdomNum).val();
+							$.post('/template/saveTemplateContent/', {id: fileid, contents: contents}, function(data, status){
+								console.log(data);
+								if(status == "success"){
+									if(data.status == 1){
+										layer.msg(data.info);
+									}else{
+										layer.msg(data.info);
+									}
+								}else{
+									layer.msg('请求错误');
+								}
+							});
+						}
+						,btn2: function(){
+							layer.close(index);
+						}
+					});
+				}else{
+					layer.msg(data.info);
+				}
+			}else{
+				layer.msg('请求错误');
+			}
+		});
+	});
+	
+	$('.deletefile').click(function(){
+		var filename = $(this).attr('filename');
+		var fileid = $(this).attr('fileid');
+		var that = $(this);
+		layer.confirm('确定删除文件 '+filename+' ？', {
+			btn: ['确定','取消']
+		}, function(){
+			$.post('/template/deltemplate/', {id: fileid}, function(data, status){
+				if(status == 'success'){
+					if(data.status == 1){
+						layer.msg(data.info);
+						that.parents('tr').remove();
+					}else{
+						layer.msg(data.info);
+					}
+				}else{
+					layer.msg('请求错误');
+				}
+			});
+		});
+	});
+	
+	$('.renamefile').click(function(){
+		var fileid = $(this).attr('fileid');
+		var filename = $(this).attr('filename');
+		var that = $(this);
+		layer.prompt({title: '请输入 '+filename+' 的新文件名', formType: 3, value: filename}, function(newfilename, index){
+			$.post('/template/renameTemplate/', {id: fileid, filename: newfilename}, function(data, status){
+				if(status == 'success'){
+					if(data.status == 1){
+						layer.msg(data.info);
+						layer.close(index);
+						window.location.reload();
+					}else{
+						layer.msg(data.info);
+					}
+				}else{
+					layer.msg('请求错误');
+				}
+			});
+		});
+	});
+	
+	$('.createfile').click(function(){
+		var filename = $('input[name="filename"]').val();
+		if(!filename){
+			layer.msg('请输入文件名');
+			return false;
+		}
+		$.post('/template/addtemplate/', {filename: filename}, function(data, status){
+			if(status == 'success'){
+				if(data.status == 1){
+					layer.msg(data.info);
+					window.location.reload();
+				}else{
+					layer.msg(data.info);
+				}
+			}else{
+				layer.msg('请求错误');
+			}
+		});
+	});
+</script>
+{% endblock %}
