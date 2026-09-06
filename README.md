@@ -63,7 +63,7 @@
 ### 1. 安装依赖
 
 ```bash
-conda create -n k8sdashboard-django python=3.10 -y
+conda create -n k8sdashboard-django python=3.6.8 -y
 conda activate k8sdashboard-django
 
 pip install django==3.2.25
