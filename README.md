@@ -147,13 +147,28 @@ TEMPLATES = [
 
 ```text
 .
-├── dashboard/            # Django 项目配置
-├── k8sdashboard/         # Kubernetes 与多云管理业务代码
-│   ├── templates/        # 页面模板
-│   ├── urls/             # 路由
-│   └── utils/            # K8s 与日志工具
-├── static/               # 静态资源
-├── images/               # README 截图
+├── .gitignore
+├── .gitlab-ci.yml
+├── Dockerfile
+├── manage.py
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+├── dashboard/                 # Django 项目配置
+│   ├── asgi.py
+│   ├── context.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── images/                    # README 截图
+├── k8sdashboard/              # Kubernetes 与多云管理业务代码
+│   ├── management/commands/   # Django 管理命令
+│   ├── migrations/            # 数据库迁移
+│   ├── templates/             # 页面模板
+│   ├── templatetags/          # 模板标签
+│   ├── urls/                  # 路由
+│   └── utils/                 # K8s 与日志工具
+├── static/                    # 静态资源
+│   ├── css/
+│   ├── js/
+│   └── layui/
 ```
